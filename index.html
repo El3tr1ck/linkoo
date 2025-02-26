@@ -14,89 +14,145 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            padding: 20px;
-            color: #333;
+            background: linear-gradient(135deg, #1e1e2f, #2a2a4a, #667eea);
+            background-attachment: fixed;
+            padding: 30px;
+            color: #fff;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Partículas de fundo animadas */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particles::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 10s infinite;
+        }
+
+        .particles::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 15s infinite reverse;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(150px, 100vh); opacity: 0; }
         }
 
         .header {
             display: flex;
             justify-content: flex-end;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            z-index: 1;
         }
 
         .user-btn {
-            background: #fff;
-            padding: 10px 20px;
-            border-radius: 25px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 30px;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
-            transition: transform 0.2s;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
 
         .user-btn:hover {
-            transform: translateY(-2px);
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         }
 
         .card {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            max-width: 550px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
             animation: fadeIn 0.5s ease-in;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
+            from { opacity: 0; transform: translateY(-30px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 1.5rem;
-            color: #333;
+            margin-bottom: 2rem;
+            color: #2a2a4a;
+            font-size: 2rem;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         input {
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 14px;
+            margin: 12px 0;
+            border: none;
+            border-radius: 10px;
             font-size: 1rem;
+            background: #f0f0f5;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
         }
 
         .btn {
             display: block;
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
+            padding: 14px;
+            margin: 12px 0;
             border: none;
             border-radius: 25px;
-            font-size: 1rem;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         }
 
         .create-btn {
-            background: #4CAF50;
+            background: linear-gradient(45deg, #4CAF50, #66bb6a);
             color: white;
-        }
-
-        .create-btn:hover {
-            background: #45a049;
         }
 
         .join-btn {
-            background: #667eea;
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-        }
-
-        .join-btn:hover {
-            background: #5a6cd8;
         }
 
         .error {
@@ -105,6 +161,7 @@
             margin-top: 5px;
             text-align: center;
             display: none;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         /* Painel de Entrar */
@@ -115,9 +172,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
+            z-index: 2;
         }
 
         .overlay.active {
@@ -125,30 +183,34 @@
         }
 
         .join-panel {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 2.5rem;
+            border-radius: 20px;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
             animation: slideIn 0.3s ease-in;
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-20px); }
+            from { opacity: 0; transform: translateY(-30px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .enter-btn {
-            background: #4CAF50;
+            background: linear-gradient(45deg, #4CAF50, #66bb6a);
             color: white;
         }
 
-        .enter-btn:hover {
-            background: #45a049;
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #2a2a4a;
         }
     </style>
 </head>
 <body>
+    <div class="particles"></div>
     <div class="header">
         <button class="user-btn" id="userButton" onclick="window.location.href='identity.html'"></button>
     </div>
@@ -178,13 +240,11 @@
             const userLogin = localStorage.getItem('userLogin');
             const googleLogin = localStorage.getItem('googleLogin');
 
-            // Se não estiver logado por nenhuma das duas formas, redireciona para login.html
             if (!userLogin && !googleLogin) {
                 window.location.href = 'login.html';
                 return;
             }
 
-            // Carregar nome do usuário
             const user = JSON.parse(userLogin) || JSON.parse(googleLogin);
             const userButton = document.getElementById('userButton');
             
@@ -192,6 +252,21 @@
                 userButton.textContent = user.username;
             } else {
                 userButton.textContent = 'Usuário';
+            }
+
+            // Gerar partículas aleatórias
+            const particles = document.querySelector('.particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('span');
+                particle.style.position = 'absolute';
+                particle.style.width = '2px';
+                particle.style.height = '2px';
+                particle.style.background = 'rgba(255, 255, 255, 0.2)';
+                particle.style.borderRadius = '50%';
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.top = Math.random() * 100 + 'vh';
+                particle.style.animation = `float ${10 + Math.random() * 10}s infinite ${Math.random() > 0.5 ? 'reverse' : ''}`;
+                particles.appendChild(particle);
             }
         };
 
