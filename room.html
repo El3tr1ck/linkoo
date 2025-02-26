@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sala de Chat</title>
     <style>
-        /* Estilos mantidos iguais ao anterior */
         * {
             margin: 0;
             padding: 0;
@@ -201,22 +200,32 @@
                 password: roomData.password,
                 owner: user.username,
                 active: true
+            }).then(() => {
+                console.log('Sala criada com sucesso no Firestore!');
+            }).catch((error) => {
+                console.error('Erro ao criar sala:', error);
+                alert('Erro ao criar a sala. Verifique o console.');
             });
         } else {
-            // Verificar se a sala existe e a senha está correta
             const roomRef = collection(db, 'rooms');
             const q = query(roomRef, where('name', '==', roomData.name), where('password', '==', roomData.password));
             getDocs(q).then((snapshot) => {
                 if (snapshot.empty) {
                     alert('Sala não encontrada ou senha incorreta.');
                     window.location.href = 'index.html';
+                } else {
+                    console.log('Sala encontrada com sucesso!');
                 }
+            }).catch((error) => {
+                console.error('Erro ao verificar sala:', error);
+                alert('Erro ao verificar a sala. Verifique o console.');
             });
         }
 
         // Carregar mensagens em tempo real
         const messagesQuery = query(collection(db, 'rooms', roomId, 'messages'), orderBy('timestamp'));
         onSnapshot(messagesQuery, (snapshot) => {
+            console.log('Atualizando mensagens...');
             const chatContainer = document.getElementById('chatContainer');
             chatContainer.innerHTML = '';
             snapshot.forEach((doc) => {
@@ -230,6 +239,9 @@
                 chatContainer.appendChild(messageDiv);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             });
+        }, (error) => {
+            console.error('Erro ao carregar mensagens:', error);
+            alert('Erro ao carregar mensagens. Verifique o console.');
         });
 
         // Enviar mensagem
@@ -242,8 +254,15 @@
                     email: user.email || 'N/A',
                     text: text,
                     timestamp: Date.now()
+                }).then(() => {
+                    console.log('Mensagem enviada com sucesso!');
+                    messageInput.value = '';
+                }).catch((error) => {
+                    console.error('Erro ao enviar mensagem:', error);
+                    alert('Erro ao enviar mensagem. Verifique o console.');
                 });
-                messageInput.value = '';
+            } else {
+                console.log('Mensagem vazia, não enviada.');
             }
         }
 
@@ -255,9 +274,13 @@
         // Sair da sala
         function leaveRoom() {
             if (isOwner) {
-                setDoc(doc(db, 'rooms', roomId), { active: false }, { merge: true });
-                localStorage.removeItem('roomOwner');
-                window.location.href = 'exit.html';
+                setDoc(doc(db, 'rooms', roomId), { active: false }, { merge: true }).then(() => {
+                    console.log('Sala fechada com sucesso!');
+                    localStorage.removeItem('roomOwner');
+                    window.location.href = 'exit.html';
+                }).catch((error) => {
+                    console.error('Erro ao fechar sala:', error);
+                });
             } else {
                 window.location.href = 'index.html';
             }
@@ -282,6 +305,8 @@
             if (doc.exists() && !doc.data().active) {
                 window.location.href = 'exit.html';
             }
+        }, (error) => {
+            console.error('Erro ao verificar estado da sala:', error);
         });
     </script>
 </body>
