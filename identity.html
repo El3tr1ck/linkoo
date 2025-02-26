@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identidade - Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e1e2f, #2a2a4a, #667eea);
+            background-attachment: fixed;
+            padding: 30px;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particles::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 10s infinite;
+        }
+
+        .particles::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 15s infinite reverse;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(150px, 100vh); opacity: 0; }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2a2a4a;
+            font-size: 2rem;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .info {
+            margin: 15px 0;
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .info span {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .delete-btn {
+            background: linear-gradient(45deg, #ff4444, #ff6666);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="particles"></div>
+    <div class="card">
+        <h1>Sua Identidade</h1>
+        <div id="identityInfo">
+            <div class="info">Método de Login: <span id="loginMethod"></span></div>
+            <div class="info">Nome: <span id="username"></span></div>
+            <div class="info">Email: <span id="email"></span></div>
+            <div class="info">Senha: <span id="password"></span></div>
+        </div>
+        <button class="btn back-btn" onclick="window.location.href='index.html'">Voltar</button>
+        <button class="btn delete-btn" onclick="deleteAccount()">Excluir Conta</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const userLogin = localStorage.getItem('userLogin');
+            const googleLogin = localStorage.getItem('googleLogin');
+
+            if (!userLogin && !googleLogin) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const loginMethod = document.getElementById('loginMethod');
+            const username = document.getElementById('username');
+            const email = document.getElementById('email');
+            const password = document.getElementById('password');
+
+            if (googleLogin) {
+                const googleData = JSON.parse(googleLogin);
+                loginMethod.textContent = 'Google';
+                username.textContent = googleData.username || 'Não disponível';
+                email.textContent = googleData.email || 'Não disponível';
+                password.textContent = 'N/A (Google Login)';
+            }
+            else if (userLogin) {
+                const userData = JSON.parse(userLogin);
+                loginMethod.textContent = 'Site';
+                username.textContent = userData.username;
+                email.textContent = userData.email;
+                password.textContent = userData.password;
+            }
+            else {
+                loginMethod.textContent = 'Sessão';
+                username.textContent = generateRandomName();
+                email.textContent = 'N/A (Sessão)';
+                password.textContent = 'N/A (Sessão)';
+            }
+
+            // Gerar partículas aleatórias
+            const particles = document.querySelector('.particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('span');
+                particle.style.position = 'absolute';
+                particle.style.width = '2px';
+                particle.style.height = '2px';
+                particle.style.background = 'rgba(255, 255, 255, 0.2)';
+                particle.style.borderRadius = '50%';
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.top = Math.random() * 100 + 'vh';
+                particle.style.animation = `float ${10 + Math.random() * 10}s infinite ${Math.random() > 0.5 ? 'reverse' : ''}`;
+                particles.appendChild(particle);
+            }
+        };
+
+        function generateRandomName() {
+            const prefixes = ['Sky', 'Blue', 'Dark', 'Light', 'Star', 'Moon', 'Sunny', 'Cloud'];
+            const suffixes = ['Walker', 'Rider', 'Hunter', 'Seeker', 'Dancer', 'Flyer', 'Dreamer', 'Voyager'];
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+            const number = Math.floor(Math.random() * 100);
+            return `${prefix}${suffix}${number}`;
+        }
+
+        // Função para excluir a conta
+        function deleteAccount() {
+            if (confirm('Tem certeza que deseja excluir sua conta? Isso limpará todas as informações salvas.')) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>
