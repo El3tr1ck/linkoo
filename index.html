@@ -22,7 +22,6 @@
             position: relative;
         }
 
-        /* Partículas de fundo animadas */
         .particles {
             position: absolute;
             top: 0;
@@ -164,7 +163,6 @@
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        /* Painel de Entrar */
         .overlay {
             display: none;
             position: fixed;
@@ -235,7 +233,6 @@
     </div>
 
     <script>
-        // Verificar se o usuário está logado ao carregar a página
         window.onload = function() {
             const userLogin = localStorage.getItem('userLogin');
             const googleLogin = localStorage.getItem('googleLogin');
@@ -248,6 +245,7 @@
             const user = JSON.parse(userLogin) || JSON.parse(googleLogin);
             const userButton = document.getElementById('userButton');
             
+            // Exibir o username (do Google ou do site)
             if (user && user.username) {
                 userButton.textContent = user.username;
             } else {
@@ -270,7 +268,6 @@
             }
         };
 
-        // Criar Sala
         function createRoom() {
             const roomName = document.getElementById('roomName').value;
             const roomIP = document.getElementById('roomIP').value;
@@ -291,7 +288,6 @@
             window.location.href = 'room.html';
         }
 
-        // Mostrar/Esconder Painel de Entrar
         function toggleJoinPanel() {
             const overlay = document.getElementById('joinOverlay');
             overlay.classList.toggle('active');
@@ -304,7 +300,6 @@
             }
         }
 
-        // Entrar em Sala
         function joinRoom() {
             const joinID = document.getElementById('joinID').value;
             const joinName = document.getElementById('joinName').value;
