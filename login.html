@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .login-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .session-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .google-btn {
+            background: #fff;
+            color: #333;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .site-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .form-container.active {
+            display: block;
+            animation: slideIn 0.3s ease-in;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .confirm-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            width: 100%;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .confirm-btn:hover {
+            background: #45a049;
+        }
+
+        .error {
+            color: #ff4444;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bem-vindo ao Chat</h1>
+        
+        <button class="login-btn session-btn" onclick="window.location.href='index.html'">
+            Entrar com Sessão
+        </button>
+
+        <button class="login-btn google-btn" id="googleLogin">
+            <!-- Aqui você pode adicionar o ícone do Google e a API -->
+            <span>Entrar com Google</span>
+        </button>
+
+        <button class="login-btn site-btn" onclick="toggleForm()">
+            Login do Site
+        </button>
+
+        <div class="form-container" id="loginForm">
+            <input type="text" id="username" placeholder="Nome de Usuário">
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Senha">
+            <div class="error" id="errorMsg"></div>
+            <button class="confirm-btn" onclick="validateAndSave()">Confirmar</button>
+        </div>
+    </div>
+
+    <script>
+        // Verificar se já está logado ao carregar a página
+        window.onload = function() {
+            const userLogin = localStorage.getItem('userLogin');
+            const googleLogin = localStorage.getItem('googleLogin'); // Simulação para Google
+
+            if (userLogin || googleLogin) {
+                window.location.href = 'index.html';
+            }
+        };
+
+        function toggleForm() {
+            const form = document.getElementById('loginForm');
+            form.classList.toggle('active');
+        }
+
+        function validateAndSave() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+
+            // Reset error
+            errorMsg.style.display = 'none';
+            errorMsg.textContent = '';
+
+            // Validações
+            if (!username) {
+                showError('Por favor, insira um nome de usuário');
+                return;
+            }
+
+            if (!email || !email.includes('@') || !email.includes('.')) {
+                showError('Por favor, insira um email válido');
+                return;
+            }
+
+            if (!password || password.length < 8) {
+                showError('A senha deve ter pelo menos 8 caracteres');
+                return;
+            }
+
+            // Salvar dados no localStorage
+            const userData = {
+                username: username,
+                email: email,
+                password: password
+            };
+            localStorage.setItem('userLogin', JSON.stringify(userData));
+
+            // Redirecionar para index.html
+            window.location.href = 'index.html';
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+        }
+
+        // Simulação para Google Login (substitua pela API real)
+        document.getElementById('googleLogin').addEventListener('click', function() {
+            // Aqui você implementaria a API do Google
+            // Para simulação:
+            const googleData = { loggedIn: true }; // Exemplo simples
+            localStorage.setItem('googleLogin', JSON.stringify(googleData));
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
