@@ -173,9 +173,19 @@
     </div>
 
     <script>
-        // Carregar informações do localStorage
+        // Verificar se o usuário está logado ao carregar a página
         window.onload = function() {
-            const user = JSON.parse(localStorage.getItem('userLogin')) || JSON.parse(localStorage.getItem('googleLogin'));
+            const userLogin = localStorage.getItem('userLogin');
+            const googleLogin = localStorage.getItem('googleLogin');
+
+            // Se não estiver logado por nenhuma das duas formas, redireciona para login.html
+            if (!userLogin && !googleLogin) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Carregar nome do usuário
+            const user = JSON.parse(userLogin) || JSON.parse(googleLogin);
             const userButton = document.getElementById('userButton');
             
             if (user && user.username) {
@@ -200,7 +210,6 @@
                 return;
             }
 
-            // Salvar dados da sala (opcional, para uso futuro)
             const roomData = { name: roomName, ip: roomIP };
             localStorage.setItem('currentRoom', JSON.stringify(roomData));
 
@@ -235,7 +244,6 @@
                 return;
             }
 
-            // Salvar dados da sala (opcional, para uso futuro)
             const roomData = { id: joinID, name: joinName };
             localStorage.setItem('currentRoom', JSON.stringify(roomData));
 
