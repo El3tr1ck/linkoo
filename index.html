@@ -216,7 +216,7 @@
     <div class="card">
         <h1>Criar Sala de Chat</h1>
         <input type="text" id="roomName" placeholder="Nome da Sala">
-        <input type="text" id="roomIP" placeholder="IP da Sala">
+        <input type="password" id="roomPassword" placeholder="Senha da Sala">
         <div class="error" id="createError"></div>
         <button class="btn create-btn" onclick="createRoom()">Criar</button>
         <button class="btn join-btn" onclick="toggleJoinPanel()">Entrar em Sala</button>
@@ -225,8 +225,8 @@
     <div class="overlay" id="joinOverlay" onclick="closePanel(event)">
         <div class="join-panel">
             <h2>Entrar em Sala</h2>
-            <input type="text" id="joinID" placeholder="ID da Sala">
             <input type="text" id="joinName" placeholder="Nome da Sala">
+            <input type="password" id="joinPassword" placeholder="Senha da Sala">
             <div class="error" id="joinError"></div>
             <button class="btn enter-btn" onclick="joinRoom()">Entrar</button>
         </div>
@@ -245,14 +245,12 @@
             const user = JSON.parse(userLogin) || JSON.parse(googleLogin);
             const userButton = document.getElementById('userButton');
             
-            // Exibir o username (do Google ou do site)
             if (user && user.username) {
                 userButton.textContent = user.username;
             } else {
                 userButton.textContent = 'Usuário';
             }
 
-            // Gerar partículas aleatórias
             const particles = document.querySelector('.particles');
             for (let i = 0; i < 20; i++) {
                 const particle = document.createElement('span');
@@ -270,21 +268,21 @@
 
         function createRoom() {
             const roomName = document.getElementById('roomName').value;
-            const roomIP = document.getElementById('roomIP').value;
+            const roomPassword = document.getElementById('roomPassword').value;
             const errorMsg = document.getElementById('createError');
 
             errorMsg.style.display = 'none';
             errorMsg.textContent = '';
 
-            if (!roomName || !roomIP) {
-                errorMsg.textContent = 'Por favor, preencha nome e IP da sala';
+            if (!roomName || !roomPassword) {
+                errorMsg.textContent = 'Por favor, preencha nome e senha da sala';
                 errorMsg.style.display = 'block';
                 return;
             }
 
-            const roomData = { name: roomName, ip: roomIP };
+            const roomData = { name: roomName, password: roomPassword };
             localStorage.setItem('currentRoom', JSON.stringify(roomData));
-
+            localStorage.setItem('roomOwner', 'true');
             window.location.href = 'room.html';
         }
 
@@ -301,22 +299,22 @@
         }
 
         function joinRoom() {
-            const joinID = document.getElementById('joinID').value;
             const joinName = document.getElementById('joinName').value;
+            const joinPassword = document.getElementById('joinPassword').value;
             const errorMsg = document.getElementById('joinError');
 
             errorMsg.style.display = 'none';
             errorMsg.textContent = '';
 
-            if (!joinID || !joinName) {
-                errorMsg.textContent = 'Por favor, preencha ID e nome da sala';
+            if (!joinName || !joinPassword) {
+                errorMsg.textContent = 'Por favor, preencha nome e senha da sala';
                 errorMsg.style.display = 'block';
                 return;
             }
 
-            const roomData = { id: joinID, name: joinName };
+            const roomData = { name: joinName, password: joinPassword };
             localStorage.setItem('currentRoom', JSON.stringify(roomData));
-
+            localStorage.removeItem('roomOwner'); // Não é o dono ao entrar
             window.location.href = 'room.html';
         }
     </script>
