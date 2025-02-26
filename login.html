@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Chat</title>
+    <!-- Carregar a API do Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -63,16 +65,6 @@
             color: white;
         }
 
-        .google-btn {
-            background: #fff;
-            color: #333;
-            border: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
         .site-btn {
             background: #667eea;
             color: white;
@@ -124,6 +116,14 @@
             margin-top: 5px;
             display: none;
         }
+
+        /* Estilo para o botão do Google */
+        #googleSignInButton {
+            margin: 10px 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -134,10 +134,8 @@
             Entrar com Sessão
         </button>
 
-        <button class="login-btn google-btn" id="googleLogin">
-            <!-- Aqui você pode adicionar o ícone do Google e a API -->
-            <span>Entrar com Google</span>
-        </button>
+        <!-- Botão do Google Sign-In -->
+        <div id="googleSignInButton"></div>
 
         <button class="login-btn site-btn" onclick="toggleForm()">
             Login do Site
@@ -153,15 +151,51 @@
     </div>
 
     <script>
-        // Verificar se já está logado ao carregar a página
+        // Configuração do Google Sign-In
         window.onload = function() {
-            const userLogin = localStorage.getItem('userLogin');
-            const googleLogin = localStorage.getItem('googleLogin'); // Simulação para Google
+            google.accounts.id.initialize({
+                client_id: '415934495097-391gm63olfo4s34jo2tr5mrno8i06q8d.apps.googleusercontent.com',
+                callback: handleCredentialResponse
+            });
 
+            google.accounts.id.renderButton(
+                document.getElementById('googleSignInButton'),
+                {
+                    theme: 'outline',
+                    size: 'large',
+                    width: '100%',
+                    text: 'signin_with'
+                }
+            );
+
+            // Verificar se já está logado
+            const userLogin = localStorage.getItem('userLogin');
+            const googleLogin = localStorage.getItem('googleLogin');
             if (userLogin || googleLogin) {
                 window.location.href = 'index.html';
             }
         };
+
+        // Callback para resposta do Google
+        function handleCredentialResponse(response) {
+            const profile = parseJwt(response.credential);
+            const googleData = {
+                username: profile.name,
+                email: profile.email
+            };
+            localStorage.setItem('googleLogin', JSON.stringify(googleData));
+            window.location.href = 'index.html';
+        }
+
+        // Função para decodificar o JWT do Google
+        function parseJwt(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
 
         function toggleForm() {
             const form = document.getElementById('loginForm');
@@ -174,11 +208,9 @@
             const password = document.getElementById('password').value;
             const errorMsg = document.getElementById('errorMsg');
 
-            // Reset error
             errorMsg.style.display = 'none';
             errorMsg.textContent = '';
 
-            // Validações
             if (!username) {
                 showError('Por favor, insira um nome de usuário');
                 return;
@@ -194,15 +226,12 @@
                 return;
             }
 
-            // Salvar dados no localStorage
             const userData = {
                 username: username,
                 email: email,
                 password: password
             };
             localStorage.setItem('userLogin', JSON.stringify(userData));
-
-            // Redirecionar para index.html
             window.location.href = 'index.html';
         }
 
@@ -211,15 +240,6 @@
             errorMsg.textContent = message;
             errorMsg.style.display = 'block';
         }
-
-        // Simulação para Google Login (substitua pela API real)
-        document.getElementById('googleLogin').addEventListener('click', function() {
-            // Aqui você implementaria a API do Google
-            // Para simulação:
-            const googleData = { loggedIn: true }; // Exemplo simples
-            localStorage.setItem('googleLogin', JSON.stringify(googleData));
-            window.location.href = 'index.html';
-        });
     </script>
 </body>
 </html>
