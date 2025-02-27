@@ -17,9 +17,30 @@
             background: linear-gradient(135deg, #1e1e2f, #2a2a4a, #667eea);
             padding: 30px;
             color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: relative;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .user-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .user-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         }
 
         .card {
@@ -29,6 +50,7 @@
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
             max-width: 500px;
             width: 100%;
+            margin: 0 auto;
             animation: fadeIn 0.5s ease-in;
         }
 
@@ -99,6 +121,10 @@
     </style>
 </head>
 <body>
+    <div class="header">
+        <button class="user-btn" id="userButton" onclick="window.location.href='identity.html'"></button>
+    </div>
+
     <div class="card">
         <h1>Chat</h1>
         <input type="text" id="roomName" placeholder="Nome da Sala">
@@ -125,12 +151,14 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Verificar login
+        // Verificar login e carregar nome de usuário
         const user = JSON.parse(localStorage.getItem('userLogin')) || JSON.parse(localStorage.getItem('googleLogin'));
         if (!user) {
             window.location.href = 'login.html';
             return;
         }
+
+        document.getElementById('userButton').textContent = user.username || 'Usuário';
 
         async function createRoom() {
             const roomName = document.getElementById('roomName').value.trim();
@@ -148,24 +176,31 @@
 
             const roomId = `${roomName}-${roomPassword.hashCode()}`;
             const roomRef = doc(db, 'rooms', roomId);
-            const roomSnap = await getDoc(roomRef);
 
-            if (roomSnap.exists()) {
-                errorMsg.textContent = 'Essa sala já existe. Use outra combinação de nome e senha.';
+            try {
+                const roomSnap = await getDoc(roomRef);
+                if (roomSnap.exists()) {
+                    errorMsg.textContent = 'Essa sala já existe. Use outra combinação de nome e senha.';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+
+                await setDoc(roomRef, {
+                    name: roomName,
+                    password: roomPassword,
+                    owner: user.username,
+                    active: true
+                });
+
+                console.log('Sala criada com sucesso:', roomId);
+                localStorage.setItem('currentRoom', JSON.stringify({ id: roomId, name: roomName, password: roomPassword }));
+                localStorage.setItem('isOwner', 'true');
+                window.location.href = 'room.html';
+            } catch (error) {
+                console.error('Erro ao criar sala:', error);
+                errorMsg.textContent = 'Erro ao criar sala. Verifique o console.';
                 errorMsg.style.display = 'block';
-                return;
             }
-
-            await setDoc(roomRef, {
-                name: roomName,
-                password: roomPassword,
-                owner: user.username,
-                active: true
-            });
-
-            localStorage.setItem('currentRoom', JSON.stringify({ id: roomId, name: roomName, password: roomPassword }));
-            localStorage.setItem('isOwner', 'true');
-            window.location.href = 'room.html';
         }
 
         async function joinRoom() {
@@ -184,17 +219,24 @@
 
             const roomId = `${roomName}-${roomPassword.hashCode()}`;
             const roomRef = doc(db, 'rooms', roomId);
-            const roomSnap = await getDoc(roomRef);
 
-            if (!roomSnap.exists() || !roomSnap.data().active) {
-                errorMsg.textContent = 'Sala não encontrada ou não está ativa.';
+            try {
+                const roomSnap = await getDoc(roomRef);
+                if (!roomSnap.exists() || !roomSnap.data().active) {
+                    errorMsg.textContent = 'Sala não encontrada ou não está ativa.';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+
+                console.log('Entrando na sala:', roomId);
+                localStorage.setItem('currentRoom', JSON.stringify({ id: roomId, name: roomName, password: roomPassword }));
+                localStorage.removeItem('isOwner');
+                window.location.href = 'room.html';
+            } catch (error) {
+                console.error('Erro ao entrar na sala:', error);
+                errorMsg.textContent = 'Erro ao entrar na sala. Verifique o console.';
                 errorMsg.style.display = 'block';
-                return;
             }
-
-            localStorage.setItem('currentRoom', JSON.stringify({ id: roomId, name: roomName, password: roomPassword }));
-            localStorage.removeItem('isOwner');
-            window.location.href = 'room.html';
         }
 
         // Função para gerar hash da senha
