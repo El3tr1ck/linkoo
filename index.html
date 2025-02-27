@@ -135,6 +135,7 @@
     </div>
 
     <script type="module">
+        // Importar Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
@@ -148,17 +149,22 @@
             measurementId: "G-RVQ446VZRD"
         };
 
+        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Verificar login e carregar nome de usuário
-        const user = JSON.parse(localStorage.getItem('userLogin')) || JSON.parse(localStorage.getItem('googleLogin'));
-        if (!user) {
-            window.location.href = 'login.html';
-            return;
+        // Função de inicialização
+        function init() {
+            const user = JSON.parse(localStorage.getItem('userLogin')) || JSON.parse(localStorage.getItem('googleLogin'));
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('userButton').textContent = user.username || 'Usuário';
         }
 
-        document.getElementById('userButton').textContent = user.username || 'Usuário';
+        // Chamar a inicialização quando a página carregar
+        init();
 
         async function createRoom() {
             const roomName = document.getElementById('roomName').value.trim();
@@ -185,6 +191,7 @@
                     return;
                 }
 
+                const user = JSON.parse(localStorage.getItem('userLogin')) || JSON.parse(localStorage.getItem('googleLogin'));
                 await setDoc(roomRef, {
                     name: roomName,
                     password: roomPassword,
