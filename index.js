@@ -1,10 +1,9 @@
 // Importações do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-// NOVO: Precisamos de mais funções do Firestore
 import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Sua configuração do Firebase (a mesma do login.html)
+// Sua configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCW2cEHzn6r9j9_hlpMfADkTbGp7aD03k4",
     authDomain: "linko-4f252.firebaseapp.com",
@@ -26,10 +25,9 @@ const appContent = document.getElementById('app-content');
 const onboardingForm = document.getElementById('onboarding-form');
 const userDisplayName = document.getElementById('user-display-name');
 const logoutBtn = document.getElementById('logout-btn');
-const onboardingMessage = document.getElementById('onboarding-message'); // NOVO: Para mensagens de erro
+const onboardingMessage = document.getElementById('onboarding-message');
 
 // --- LÓGICA PRINCIPAL ---
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userDocRef = doc(db, "users", user.uid);
@@ -61,10 +59,9 @@ logoutBtn.addEventListener('click', () => {
     signOut(auth).catch(error => console.error("Erro ao sair:", error));
 });
 
-// --- LÓGICA DO FORMULÁRIO (VERSÃO DE TESTE SIMPLIFICADA) ---
+// --- LÓGICA DO FORMULÁRIO DE CADASTRO (VERSÃO FINAL) ---
 onboardingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-
     const user = auth.currentUser;
     if (!user) return;
 
@@ -77,10 +74,13 @@ onboardingForm.addEventListener('submit', async (event) => {
     onboardingMessage.textContent = '';
 
     try {
-        // CÓDIGO TEMPORARIAMENTE DESATIVADO PARA TESTE
-        // console.log("Verificação de username pulada para o teste.");
-        
-        // PASSO 1: Preparar os dados para salvar
+        const q = query(collection(db, "users"), where("username", "==", username));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            throw new Error("Este nome de usuário já está em uso. Tente outro.");
+        }
+
         const userProfile = {
             uid: user.uid,
             username: username,
@@ -90,16 +90,12 @@ onboardingForm.addEventListener('submit', async (event) => {
             contacts: []
         };
 
-        // PASSO 2: Criar o documento diretamente!
         await setDoc(doc(db, "users", user.uid), userProfile);
-
-        // PASSO 3: Tudo certo! Mostrar o aplicativo.
         showApp(userProfile);
 
     } catch (error) {
-        console.error("Erro ao criar perfil (versão de teste): ", error);
+        console.error("Erro ao criar perfil: ", error);
         onboardingMessage.textContent = error.message;
-
         submitButton.disabled = false;
         submitButton.textContent = 'Salvar e Entrar';
     }
