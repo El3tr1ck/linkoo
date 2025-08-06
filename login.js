@@ -46,7 +46,7 @@ if (isSignInWithEmailLink(auth, window.location.href)) {
 googleLoginBtn.addEventListener('click', () => {
     const provider = new GoogleAuthProvider(); // Cria o provedor do Google
 
-    signInWithPopup(auth, provider)
+    signInWithRedirect(auth, provider);
         .then((result) => {
             // Sucesso! O usuário está logado
             console.log('Usuário logado com Google:', result.user);
