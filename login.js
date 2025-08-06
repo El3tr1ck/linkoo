@@ -1,8 +1,9 @@
 // Importa as funções de autenticação que vamos usar
-import {
-    GoogleAuthProvider,
-    signInWithPopup,
-    signInWithRedirect, // Adicionado para a outra solução, mas não tem problema estar aqui
+import { 
+    getAuth,
+    onAuthStateChanged, // Importamos o observador de estado
+    GoogleAuthProvider, 
+    signInWithPopup, 
     sendSignInLinkToEmail,
     isSignInWithEmailLink,
     signInWithEmailLink
@@ -11,67 +12,73 @@ import {
 // Pega a instância de autenticação que criamos no HTML
 const auth = window.firebaseAuth;
 
-// --- Seleciona os elementos do HTML ---
+// --- VERIFICADOR DE SESSÃO ATIVA ---
+// Esta função roda assim que o JS carrega
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // Se o objeto 'user' existe, significa que o usuário já está logado.
+        // Então, redirecionamos ele para a página principal.
+        console.log("Usuário já está logado. Redirecionando para o index...");
+        window.location.replace('index.html');
+    }
+    // Se não houver usuário, não fazemos nada e a página de login continua visível.
+});
+
+
+// --- Lógicas da Página de Login ---
 const googleLoginBtn = document.getElementById('google-login-btn');
 const emailLoginForm = document.getElementById('email-login-form');
 const emailInput = document.getElementById('email-input');
 const messageDiv = document.getElementById('message');
 
-// --- Lógica de Login ---
-
-// 1. VERIFICAR SE O USUÁRIO CLICOU NO LINK DO E-MAIL
-// Esta parte roda assim que a página carrega para finalizar o login por link
+// Lógica de Login com Email (após clicar no link vindo do email)
 if (isSignInWithEmailLink(auth, window.location.href)) {
     let email = window.localStorage.getItem('emailForSignIn');
     if (!email) {
+        // Se não encontrar o email, pede para o usuário digitar de novo
         email = window.prompt('Por favor, digite seu e-mail para confirmar o login.');
     }
 
     signInWithEmailLink(auth, email, window.location.href)
         .then((result) => {
+            // Sucesso! Limpa o email do armazenamento.
             window.localStorage.removeItem('emailForSignIn');
-            window.location.href = 'index.html'; // Redireciona para a página principal
+            // Não precisamos mais redirecionar aqui, pois o onAuthStateChanged cuidará disso.
         })
         .catch((error) => {
             console.error(error);
-            messageDiv.textContent = 'Erro ao entrar. O link pode ser inválido ou ter expirado.';
+            messageDiv.textContent = 'Erro ao entrar. O link pode ter expirado ou ser inválido.';
             messageDiv.style.color = 'red';
         });
 }
 
-// 2. LOGIN COM GOOGLE (usando Popup)
+// Lógica de clique no botão do Google
 googleLoginBtn.addEventListener('click', () => {
     const provider = new GoogleAuthProvider();
-
-    signInWithPopup(auth, provider)
-        .then((result) => {
-            console.log('Usuário logado com Google:', result.user);
-            window.location.href = 'index.html'; // Redireciona para a página principal
-        })
-        .catch((error) => {
-            console.error('Erro no login com Google:', error);
-            messageDiv.textContent = 'Não foi possível fazer o login com o Google.';
-            messageDiv.style.color = 'red';
-        });
+    // O redirecionamento após o sucesso será tratado pelo onAuthStateChanged
+    signInWithPopup(auth, provider).catch((error) => {
+        console.error('Erro no login com Google:', error);
+        messageDiv.textContent = 'Não foi possível fazer o login com o Google.';
+        messageDiv.style.color = 'red';
+    });
 });
 
-// 3. ENVIAR LINK DE LOGIN PARA O E-MAIL
+// Lógica de envio do link por e-mail
 emailLoginForm.addEventListener('submit', (event) => {
-    // ESTA É A LINHA MAIS IMPORTANTE PARA O PROBLEMA DE RECARREGAMENTO
-    event.preventDefault(); 
-
+    event.preventDefault(); // Impede que a página recarregue
     const email = emailInput.value;
     const actionCodeSettings = {
-        url: window.location.origin + '/login.html', // Usar window.location.origin para ser mais robusto
-        handleCodeInApp: true,
+        // A URL que o usuário será redirecionado após clicar no link do email.
+        url: window.location.href,
+        handleCodeInApp: true, // Essencial!
     };
 
     sendSignInLinkToEmail(auth, email, actionCodeSettings)
         .then(() => {
+            // Salva o email no armazenamento do navegador.
             window.localStorage.setItem('emailForSignIn', email);
             messageDiv.textContent = `Link de acesso enviado para ${email}! Verifique sua caixa de entrada.`;
             messageDiv.style.color = 'green';
-            emailLoginForm.reset(); // Limpa o campo do email após o envio
         })
         .catch((error) => {
             console.error('Erro ao enviar link:', error);
