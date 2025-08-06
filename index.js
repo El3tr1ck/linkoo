@@ -1,165 +1,81 @@
-// Importações do Firebase (adicionamos updateDoc e arrayUnion)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Importa as funções de autenticação que vamos usar
+import { 
+    getAuth,
+    onAuthStateChanged, // Importamos o observador de estado
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    sendSignInLinkToEmail,
+    isSignInWithEmailLink,
+    signInWithEmailLink
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Sua configuração do Firebase
-const firebaseConfig = {
-    apiKey: "AIzaSyCW2cEHzn6r9j9_hlpMfADkTbGp7aD03k4",
-    authDomain: "linko-4f252.firebaseapp.com",
-    projectId: "linko-4f252",
-    storageBucket: "linko-4f252.firebasestorage.app",
-    messagingSenderId: "731596149941",
-    appId: "1:731596149941:web:a9e4545cc9fc5762b75afc",
-    measurementId: "G-6E05TEQXCE"
-};
+// Pega a instância de autenticação que criamos no HTML
+const auth = window.firebaseAuth;
 
-// Inicializando Firebase e seus serviços
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Selecionando os elementos do HTML
-const onboardingPanel = document.getElementById('onboarding-panel');
-const appContent = document.getElementById('app-content');
-const onboardingForm = document.getElementById('onboarding-form');
-const userDisplayName = document.getElementById('user-display-name');
-const logoutBtn = document.getElementById('logout-btn');
-const onboardingMessage = document.getElementById('onboarding-message');
-const addContactBtn = document.getElementById('add-contact-btn');
-const addContactPanel = document.getElementById('add-contact-panel');
-const addContactForm = document.getElementById('add-contact-form');
-const closeContactPanelBtn = document.getElementById('close-contact-panel-btn');
-const addContactMessage = document.getElementById('add-contact-message');
-
-// --- LÓGICA PRINCIPAL DE AUTENTICAÇÃO E ONBOARDING ---
+// --- NOVO: VERIFICADOR DE SESSÃO ATIVA ---
+// Esta função roda assim que o JS carrega
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        getDoc(userDocRef).then(docSnap => {
-            if (docSnap.exists()) {
-                showApp(docSnap.data());
-            } else {
-                showOnboarding();
-            }
-        });
-    } else {
-        window.location.replace('login.html');
+        // Se o objeto 'user' existe, significa que o usuário já está logado.
+        // Então, redirecionamos ele para a página principal.
+        console.log("Usuário já está logado. Redirecionando para o index...");
+        window.location.replace('index.html');
     }
+    // Se não houver usuário, não fazemos nada e a página de login continua visível.
 });
 
-function showApp(userData) {
-    onboardingPanel.style.display = 'none';
-    appContent.style.display = 'block';
-    userDisplayName.textContent = userData.username;
-    userDisplayName.style.color = userData.username_color;
+
+// --- O restante do código de login permanece o mesmo ---
+const googleLoginBtn = document.getElementById('google-login-btn');
+const emailLoginForm = document.getElementById('email-login-form');
+const emailInput = document.getElementById('email-input');
+const messageDiv = document.getElementById('message');
+
+// Lógica de Login com Email (após clicar no link)
+if (isSignInWithEmailLink(auth, window.location.href)) {
+    let email = window.localStorage.getItem('emailForSignIn');
+    if (!email) {
+        email = window.prompt('Por favor, digite seu e-mail para confirmar.');
+    }
+    signInWithEmailLink(auth, email, window.location.href)
+        .then((result) => {
+            window.localStorage.removeItem('emailForSignIn');
+            // Não redirecionamos mais aqui, o onAuthStateChanged cuidará disso.
+        })
+        .catch((error) => {
+            console.error(error);
+            messageDiv.textContent = 'Erro ao entrar. O link pode ter expirado.';
+            messageDiv.style.color = 'red';
+        });
 }
 
-function showOnboarding() {
-    appContent.style.display = 'none';
-    onboardingPanel.style.display = 'flex';
-}
-
-logoutBtn.addEventListener('click', () => {
-    signOut(auth).catch(error => console.error("Erro ao sair:", error));
+// Lógica de clique no botão do Google
+googleLoginBtn.addEventListener('click', () => {
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider).catch((error) => {
+        console.error('Erro no login com Google:', error);
+        messageDiv.textContent = 'Não foi possível fazer o login com o Google.';
+        messageDiv.style.color = 'red';
+    });
 });
 
-onboardingForm.addEventListener('submit', async (event) => {
+// Lógica de envio do link por e-mail
+emailLoginForm.addEventListener('submit', (event) => {
     event.preventDefault();
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const username = document.getElementById('username').value.trim();
-    const color = document.getElementById('color').value;
-
-    const submitButton = onboardingForm.querySelector('button');
-    submitButton.disabled = true;
-    submitButton.textContent = 'Salvando...';
-    onboardingMessage.textContent = '';
-
-    try {
-        const q = query(collection(db, "users"), where("username", "==", username));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            throw new Error("Este nome de usuário já está em uso. Tente outro.");
-        }
-
-        const userProfile = {
-            uid: user.uid,
-            username: username,
-            username_color: color,
-            email: user.email,
-            profile_picture_url: user.photoURL || null,
-            contacts: []
-        };
-
-        await setDoc(doc(db, "users", user.uid), userProfile);
-        showApp(userProfile);
-
-    } catch (error) {
-        console.error("Erro ao criar perfil: ", error);
-        onboardingMessage.textContent = error.message;
-        submitButton.disabled = false;
-        submitButton.textContent = 'Salvar e Entrar';
-    }
-});
-
-// --- LÓGICA PARA ADICIONAR CONTATO ---
-addContactBtn.addEventListener('click', () => {
-    addContactPanel.style.display = 'flex';
-    addContactMessage.textContent = '';
-    addContactForm.reset();
-});
-
-closeContactPanelBtn.addEventListener('click', () => {
-    addContactPanel.style.display = 'none';
-});
-
-addContactForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const contactUsername = document.getElementById('contact-username').value.trim();
-    const submitButton = addContactForm.querySelector('button[type="submit"]');
-
-    submitButton.disabled = true;
-    addContactMessage.textContent = 'Procurando...';
-    addContactMessage.style.color = 'black';
-
-    try {
-        // 1. Procurar o usuário pelo username
-        const q = query(collection(db, "users"), where("username", "==", contactUsername));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            throw new Error("Usuário não encontrado.");
-        }
-
-        // 2. Pegar os dados do usuário encontrado
-        const contactDoc = querySnapshot.docs[0];
-        const contactId = contactDoc.id; // Este é o UID do contato!
-        
-        // 3. Verificar se o usuário não está adicionando a si mesmo
-        if (contactId === user.uid) {
-            throw new Error("Você não pode adicionar a si mesmo!");
-        }
-
-        // 4. Atualizar o documento do *nosso* usuário
-        const ourUserDocRef = doc(db, "users", user.uid);
-        await updateDoc(ourUserDocRef, {
-            contacts: arrayUnion(contactId)
+    const email = emailInput.value;
+    const actionCodeSettings = {
+        url: window.location.href,
+        handleCodeInApp: true,
+    };
+    sendSignInLinkToEmail(auth, email, actionCodeSettings)
+        .then(() => {
+            window.localStorage.setItem('emailForSignIn', email);
+            messageDiv.textContent = `Link de acesso enviado para ${email}!`;
+            messageDiv.style.color = 'green';
+        })
+        .catch((error) => {
+            console.error('Erro ao enviar link:', error);
+            messageDiv.textContent = 'Erro ao enviar o link. Verifique o e-mail digitado.';
+            messageDiv.style.color = 'red';
         });
-
-        addContactMessage.textContent = `"${contactUsername}" foi adicionado com sucesso!`;
-        addContactMessage.style.color = 'green';
-        setTimeout(() => { addContactPanel.style.display = 'none'; }, 2000); // Fecha o painel após 2s
-
-    } catch (error) {
-        addContactMessage.textContent = error.message;
-        addContactMessage.style.color = 'red';
-    } finally {
-        submitButton.disabled = false;
-    }
 });
