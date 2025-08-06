@@ -34,15 +34,15 @@ body {
 .panel p { color: #606770; }
 
 /* Estilos do formulário */
-#onboarding-form {
+#onboarding-form, #add-contact-form {
     display: flex;
     flex-direction: column;
     gap: 15px;
     margin-top: 20px;
     text-align: left;
 }
-#onboarding-form label { font-weight: bold; font-size: 14px; }
-#onboarding-form input[type="text"] {
+#onboarding-form label, #add-contact-form label { font-weight: bold; font-size: 14px; }
+#onboarding-form input[type="text"], #add-contact-form input[type="text"] {
     padding: 10px;
     border: 1px solid #dddfe2;
     border-radius: 6px;
@@ -55,7 +55,7 @@ body {
     border-radius: 6px;
     padding: 0;
 }
-#onboarding-form button {
+#onboarding-form button, #add-contact-form button[type="submit"] {
     background-color: #20c997;
     color: white;
     font-weight: bold;
@@ -66,7 +66,7 @@ body {
     font-size: 16px;
     margin-top: 10px;
 }
-#onboarding-message { color: red; margin-top: 10px; }
+#onboarding-message, #add-contact-message { color: red; margin-top: 10px; font-size: 14px; }
 
 /* Layout principal do App */
 #app-content { display: none; /* Começa escondido até o perfil estar pronto */ }
@@ -77,6 +77,7 @@ header {
     padding: 10px 20px;
     background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: 40px; /* Altura fixa para o header */
 }
 #logout-btn {
     padding: 8px 12px;
@@ -86,6 +87,8 @@ header {
     cursor: pointer;
 }
 #user-display-name { font-weight: bold; margin-right: 15px; }
+
+/* Layout Principal com duas colunas */
 .main-layout {
     display: flex;
     height: calc(100vh - 60px); /* Altura total menos o header */
@@ -116,6 +119,7 @@ header {
     color: white;
     font-size: 20px;
     cursor: pointer;
+    line-height: 30px; /* Centraliza o '+' verticalmente */
 }
 
 #contacts-container {
@@ -126,6 +130,9 @@ header {
 #chat-area {
     flex-grow: 1;
     padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #add-contact-panel button {
@@ -133,6 +140,6 @@ header {
 }
 
 #close-contact-panel-btn {
-    background-color: #ccc !important;
-    color: #333 !important;
+    background-color: #ccc;
+    color: #333;
 }
