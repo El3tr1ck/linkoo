@@ -1,7 +1,8 @@
 // Importações do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// NOVO: Precisamos de mais funções do Firestore
+import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Sua configuração do Firebase (a mesma do login.html)
 const firebaseConfig = {
@@ -25,33 +26,25 @@ const appContent = document.getElementById('app-content');
 const onboardingForm = document.getElementById('onboarding-form');
 const userDisplayName = document.getElementById('user-display-name');
 const logoutBtn = document.getElementById('logout-btn');
+const onboardingMessage = document.getElementById('onboarding-message'); // NOVO: Para mensagens de erro
 
 // --- LÓGICA PRINCIPAL ---
 
-// O "Recepcionista" que verifica o estado do login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Usuário está logado. Vamos verificar se ele tem perfil.
         const userDocRef = doc(db, "users", user.uid);
-
         getDoc(userDocRef).then(docSnap => {
             if (docSnap.exists()) {
-                // O perfil JÁ EXISTE. O recepcionista encontrou a ficha.
-                console.log("Usuário já tem perfil:", docSnap.data());
                 showApp(docSnap.data());
             } else {
-                // NOVO USUÁRIO. O recepcionista não encontrou a ficha.
-                console.log("Novo usuário, mostrar painel de cadastro.");
                 showOnboarding();
             }
         });
     } else {
-        // Usuário não está logado. Redirecionar para a página de login.
         window.location.replace('login.html');
     }
 });
 
-// Função para mostrar o app principal
 function showApp(userData) {
     onboardingPanel.style.display = 'none';
     appContent.style.display = 'block';
@@ -59,22 +52,68 @@ function showApp(userData) {
     userDisplayName.style.color = userData.username_color;
 }
 
-// Função para mostrar o painel de cadastro
 function showOnboarding() {
     appContent.style.display = 'none';
     onboardingPanel.style.display = 'flex';
 }
 
-// Lógica do botão de Sair (Logout)
 logoutBtn.addEventListener('click', () => {
     signOut(auth).catch(error => console.error("Erro ao sair:", error));
 });
 
-
-// --- LÓGICA DO FORMULÁRIO DE CADASTRO (o próximo passo) ---
+// --- LÓGICA DO FORMULÁRIO DE CADASTRO (AGORA PREENCHIDA) ---
 onboardingForm.addEventListener('submit', async (event) => {
-    event.preventDefault(); // Previne o recarregamento da página
+    event.preventDefault();
 
-    // (O código para salvar os dados virá aqui no próximo passo)
-    console.log("Formulário enviado!");
+    const user = auth.currentUser;
+    if (!user) return; // Segurança extra
+
+    const username = document.getElementById('username').value.trim();
+    const color = document.getElementById('color').value;
+
+    // NOVO: Adicionando feedback de carregamento
+    const submitButton = onboardingForm.querySelector('button');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Salvando...';
+    onboardingMessage.textContent = '';
+
+    try {
+        // **PASSO 1: Verificar se o nome de usuário já existe**
+        // Criamos uma "query" (consulta) para procurar na coleção 'users'
+        // por qualquer documento que já tenha o campo 'username' igual ao escolhido.
+        const q = query(collection(db, "users"), where("username", "==", username));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            // Se a consulta não voltou vazia, o nome já existe!
+            throw new Error("Este nome de usuário já está em uso. Tente outro.");
+        }
+
+        // **PASSO 2: Preparar os dados para salvar**
+        const userProfile = {
+            uid: user.uid,
+            username: username,
+            username_color: color,
+            email: user.email,
+            // Usamos a foto do Google se existir, senão, deixamos nulo por enquanto.
+            profile_picture_url: user.photoURL || null, 
+            contacts: [] // Lista de contatos começa vazia
+        };
+
+        // **PASSO 3: Criar o documento!**
+        // Usamos setDoc para criar o documento com o ID sendo o UID do usuário.
+        await setDoc(doc(db, "users", user.uid), userProfile);
+
+        // **PASSO 4: Tudo certo! Mostrar o aplicativo.**
+        showApp(userProfile);
+
+    } catch (error) {
+        // Se qualquer coisa der errado (nome de usuário já existe, etc.)
+        console.error("Erro ao criar perfil: ", error);
+        onboardingMessage.textContent = error.message;
+
+        // Re-habilita o botão para o usuário tentar de novo
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar e Entrar';
+    }
 });
