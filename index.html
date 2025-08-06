@@ -9,34 +9,46 @@
 <body>
     <!-- Painel de Cadastro de Perfil (escondido por padrão) -->
     <div id="onboarding-panel" class="panel-container">
+        <!-- ... (código existente do painel, sem alterações) ... -->
+    </div>
+
+    <!-- NOVO: Painel para Adicionar Contato -->
+    <div id="add-contact-panel" class="panel-container">
         <div class="panel">
-            <h2>Crie seu perfil no Linko</h2>
-            <p>Escolha um nome de usuário único para começar.</p>
-            <form id="onboarding-form">
-                <label for="username">Nome de Usuário</label>
-                <input type="text" id="username" required minlength="3" maxlength="15">
-                
-                <label for="color">Cor do seu nome</label>
-                <input type="color" id="color" value="#20c997">
-                
-                <button type="submit">Salvar e Entrar</button>
+            <h2>Adicionar um novo contato</h2>
+            <p>Digite o nome de usuário exato do seu contato.</p>
+            <form id="add-contact-form">
+                <label for="contact-username">Nome de Usuário</p>
+                <input type="text" id="contact-username" required>
+                <button type="submit">Procurar e Adicionar</button>
             </form>
-            <div id="onboarding-message"></div>
+            <div id="add-contact-message"></div>
+            <button id="close-contact-panel-btn">Fechar</button> <!-- Botão para fechar -->
         </div>
     </div>
 
-    <!-- Conteúdo Principal do App (visível após o login e perfil criado) -->
+
+    <!-- Conteúdo Principal do App -->
     <div id="app-content">
         <header>
-            <h1>Linko</h1>
-            <div>
-                <span id="user-display-name"></span>
-                <button id="logout-btn">Sair</button>
-            </div>
+            <!-- ... (código existente do header, sem alterações) ... -->
         </header>
-        <main>
-            <!-- A mágica do chat acontecerá aqui -->
-            <p>Bem-vindo! O chat será construído aqui.</p>
+        <main class="main-layout">
+            <!-- NOVO: Coluna da Esquerda para Contatos -->
+            <div id="contacts-list" class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Contatos</h3>
+                    <button id="add-contact-btn">+</button>
+                </div>
+                <div id="contacts-container">
+                    <!-- A lista de contatos será inserida aqui pelo JS -->
+                </div>
+            </div>
+
+            <!-- NOVO: Coluna da Direita para o Chat -->
+            <div id="chat-area">
+                <p>Selecione um contato para começar a conversar.</p>
+            </div>
         </main>
     </div>
 
