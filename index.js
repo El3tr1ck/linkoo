@@ -61,58 +61,45 @@ logoutBtn.addEventListener('click', () => {
     signOut(auth).catch(error => console.error("Erro ao sair:", error));
 });
 
-// --- LÓGICA DO FORMULÁRIO DE CADASTRO (AGORA PREENCHIDA) ---
+// --- LÓGICA DO FORMULÁRIO (VERSÃO DE TESTE SIMPLIFICADA) ---
 onboardingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const user = auth.currentUser;
-    if (!user) return; // Segurança extra
+    if (!user) return;
 
     const username = document.getElementById('username').value.trim();
     const color = document.getElementById('color').value;
 
-    // NOVO: Adicionando feedback de carregamento
     const submitButton = onboardingForm.querySelector('button');
     submitButton.disabled = true;
     submitButton.textContent = 'Salvando...';
     onboardingMessage.textContent = '';
 
     try {
-        // **PASSO 1: Verificar se o nome de usuário já existe**
-        // Criamos uma "query" (consulta) para procurar na coleção 'users'
-        // por qualquer documento que já tenha o campo 'username' igual ao escolhido.
-        const q = query(collection(db, "users"), where("username", "==", username));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            // Se a consulta não voltou vazia, o nome já existe!
-            throw new Error("Este nome de usuário já está em uso. Tente outro.");
-        }
-
-        // **PASSO 2: Preparar os dados para salvar**
+        // CÓDIGO TEMPORARIAMENTE DESATIVADO PARA TESTE
+        // console.log("Verificação de username pulada para o teste.");
+        
+        // PASSO 1: Preparar os dados para salvar
         const userProfile = {
             uid: user.uid,
             username: username,
             username_color: color,
             email: user.email,
-            // Usamos a foto do Google se existir, senão, deixamos nulo por enquanto.
-            profile_picture_url: user.photoURL || null, 
-            contacts: [] // Lista de contatos começa vazia
+            profile_picture_url: user.photoURL || null,
+            contacts: []
         };
 
-        // **PASSO 3: Criar o documento!**
-        // Usamos setDoc para criar o documento com o ID sendo o UID do usuário.
+        // PASSO 2: Criar o documento diretamente!
         await setDoc(doc(db, "users", user.uid), userProfile);
 
-        // **PASSO 4: Tudo certo! Mostrar o aplicativo.**
+        // PASSO 3: Tudo certo! Mostrar o aplicativo.
         showApp(userProfile);
 
     } catch (error) {
-        // Se qualquer coisa der errado (nome de usuário já existe, etc.)
-        console.error("Erro ao criar perfil: ", error);
+        console.error("Erro ao criar perfil (versão de teste): ", error);
         onboardingMessage.textContent = error.message;
 
-        // Re-habilita o botão para o usuário tentar de novo
         submitButton.disabled = false;
         submitButton.textContent = 'Salvar e Entrar';
     }
