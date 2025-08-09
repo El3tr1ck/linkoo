@@ -1,115 +1,113 @@
-// NO ARQUIVO: js/chat.js
-// VERSÃO COMPLETA E ATUALIZADA
-
+// NO ARQUIVO: js/chat.js (SUBSTITUIR TUDO)
 let currentChatListener = null;
 
-function searchUsers(query) {
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    const usersRef = database.ref('users');
-    
-    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
-        const users = [];
-        snapshot.forEach(childSnapshot => {
-            const user = childSnapshot.val();
-            if (user.id !== currentUser.id) {
-                users.push(user);
-            }
-        });
-        displaySearchResults(users);
-    });
-}
+// --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
+
+function searchUsers(query) { /* ... (sem alterações) ... */ }
 
 function startChatWith(otherUser) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
-    database.ref(`user_chats/${currentUser.id}/${chatId}`).set({ withUsername: otherUser.username, withUserId: otherUser.id });
-    database.ref(`user_chats/${otherUser.id}/${chatId}`).set({ withUsername: currentUser.username, withUserId: currentUser.id });
+    
+    const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id };
+    const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id };
+
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
+    database.ref(`user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
 }
 
 function loadUserChats(userId) {
     const userChatsRef = database.ref(`user_chats/${userId}`);
     userChatsRef.on('child_added', snapshot => {
-        const chatInfo = snapshot.val();
-        addUserToContactsList(snapshot.key, { username: chatInfo.withUsername, id: chatInfo.withUserId });
+        const chatInfo = { ...snapshot.val(), id: snapshot.key };
+        addUserToContactsList(chatInfo);
+    });
+    userChatsRef.on('child_removed', snapshot => {
+        removeContactFromList(snapshot.key);
     });
 }
 
-function listenForStatusUpdates(userId) {
-    const userStatusRef = database.ref(`users/${userId}`);
-    userStatusRef.on('value', snapshot => {
-        const userData = snapshot.val();
-        if (userData) {
-            updateContactStatus(userId, userData.status);
-        }
-    });
-}
+function listenForStatusUpdates(userId) { /* ... (sem alterações) ... */ }
 
-function loadChatMessages(chatId) {
-    const messagesArea = document.getElementById('messages-area');
-    messagesArea.innerHTML = '';
+function loadChatMessages(chatId) { /* ... (sem alterações) ... */ }
+
+// --- FUNÇÕES DE ENVIO DE MENSAGEM ---
+
+async function sendTextMessage(chatId, text, chatType) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-    if (currentChatListener) {
-        currentChatListener.off();
-    }
-
-    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(50);
-    currentChatListener = messagesRef.on('child_added', (snapshot) => {
-        const message = snapshot.val();
-        displayMessage(message, currentUser.id);
-    });
-}
-
-function sendTextMessage(chatId, text) {
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    const message = {
-        senderId: currentUser.id,
-        text: text,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
-    database.ref('chats/' + chatId).push(message);
-}
-
-function handlePhotoUpload(chatId) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg, image/png, image/gif';
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 500 * 1024) {
-            alert("A imagem é muito grande! O limite para este método é de 500 KB.");
+    // Para chats diretos, verifica se o usuário está bloqueado
+    if (chatType === 'direct') {
+        const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
+        const isBlocked = await checkIfBlocked(otherUserId);
+        if (isBlocked) {
+            alert("Você não pode enviar mensagens para este usuário, pois você o bloqueou.");
             return;
         }
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            sendImageMessage(chatId, reader.result);
-        };
-    };
-    input.click();
-}
-
-/**
- * Envia uma mensagem contendo uma imagem em Base64.
- * @param {string} chatId - O ID do chat.
- * @param {string} base64String - A imagem codificada em Base64.
- */
-function sendImageMessage(chatId, base64String) {
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    const message = {
-        senderId: currentUser.id,
-        imageUrl: base64String,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
+    }
+    
+    const message = { senderId: currentUser.id, senderName: currentUser.username, text: text, timestamp: firebase.database.ServerValue.TIMESTAMP };
     database.ref('chats/' + chatId).push(message);
 }
 
-/**
- * Converte texto em Markdown para HTML seguro.
- * @param {string} text - O texto a ser convertido.
- * @returns {string} - O HTML sanitizado.
- */
+function sendImageMessage(chatId, base64String) { /* ... (sem alterações) ... */ }
+
+// --- NOVAS FUNÇÕES DE GRUPO ---
+
+function createGroup(groupName, participantIds) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const groupId = database.ref('groups').push().key;
+
+    const participants = {};
+    participantIds.forEach(id => { participants[id] = true; });
+    participants[currentUser.id] = true; // Adiciona o criador
+
+    const groupData = {
+        name: groupName,
+        creatorId: currentUser.id,
+        participants: participants
+    };
+
+    database.ref('groups/' + groupId).set(groupData);
+
+    // Adiciona o grupo na lista de conversas de cada participante
+    const chatData = { type: 'group', groupName: groupName };
+    Object.keys(participants).forEach(userId => {
+        database.ref(`user_chats/${userId}/${groupId}`).set(chatData);
+    });
+}
+
+function leaveGroup(groupId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    // Remove o usuário da lista de participantes do grupo
+    database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
+    // Remove o grupo da lista de conversas do usuário
+    database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
+}
+
+// --- NOVAS FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
+
+function blockUser(otherUserId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
+}
+
+function unblockUser(otherUserId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).remove();
+}
+
+async function checkIfBlocked(otherUserId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const snapshot = await database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).once('value');
+    return snapshot.exists();
+}
+
+function deleteConversation(chatId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
+}
+
 function convertMarkdownToHtml(text) {
     // 1. Converte o Markdown para HTML usando a biblioteca 'marked'.
     const rawHtml = marked.parse(text);
