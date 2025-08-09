@@ -11,7 +11,7 @@
     --border-color: #393a3b;
     --hover-color: #4e4f50;
     --danger-color: #ff4d4d;
-    --star-color: #f1c40f;
+    --star-color: #f7d952;
 }
 
 body {
@@ -60,7 +60,8 @@ body {
 .contacts-footer { padding: 10px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
 #current-user-info { padding: 5px; font-size: 0.9em; color: var(--secondary-text-color); }
 #current-user-info strong { color: var(--primary-text-color); }
-.identity-button { width: 100%; margin-top: 10px; padding: 10px; background-color: var(--secondary-surface-color); border: 1px solid var(--border-color); color: var(--primary-text-color); border-radius: 6px; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+#identity-button { width: 100%; margin-top: 10px; padding: 10px; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s; }
+#identity-button:hover { background-color: var(--hover-color); }
 .danger-button { width: 100%; margin-top: 10px; padding: 10px; background-color: transparent; border: 1px solid var(--danger-color); color: var(--danger-color); border-radius: 6px; cursor: pointer; transition: background-color 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .danger-button:hover { background-color: var(--danger-color); color: white; }
 
@@ -70,9 +71,11 @@ body {
 #chat-conversation-screen { height: 100%; }
 .chat-header { padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--primary-surface-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .chat-header-info { display: flex; align-items: center; gap: 15px; }
-#chat-header-clickable-area { cursor: pointer; }
 .chat-header-info h3 { margin: 0; }
+.clickable-name:hover { text-decoration: underline; cursor: pointer; }
 #chat-header-details { font-size: 0.8rem; color: var(--secondary-text-color); margin-top: 2px; }
+#chat-header-details.clickable { cursor: pointer; }
+#chat-header-details.clickable:hover { text-decoration: underline; }
 .chat-header-options { position: relative; }
 .icon-button { background: none; border: none; font-size: 1.2rem; color: var(--secondary-text-color); cursor: pointer; padding: 8px; border-radius: 50%; transition: background-color 0.2s; }
 .icon-button:hover { background-color: var(--hover-color); }
@@ -113,60 +116,37 @@ body {
 .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
 .overlay-content { background: var(--primary-surface-color); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; max-height: 90vh; }
 .close-button { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--secondary-text-color); }
-.overlay-content h3 { margin-top: 0; }
-.overlay-content input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; margin: 10px 0; background: var(--secondary-surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 6px; }
-.scrollable-list { border: 1px solid var(--border-color); border-radius: 6px; padding: 5px; }
+.overlay-content h3, .overlay-content h4 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
+.overlay-content input, .overlay-content textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; margin-top: 10px; margin-bottom: 15px; background: var(--secondary-surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 6px; }
+.overlay-content textarea { min-height: 80px; }
+#identity-overlay .scrollable-list { border: none; padding: 0; }
 .list-item { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; border-radius: 6px; }
 .list-item:hover { background-color: var(--hover-color); }
 .list-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent-color); }
 .action-button { margin-top: 15px; padding: 12px; font-size: 1rem; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; }
 
-/* ESTILOS DO PAINEL DE IDENTIDADE */
-.profile-panel { display: flex; flex-direction: column; gap: 20px; }
-.profile-section { border-top: 1px solid var(--border-color); padding-top: 15px; }
-.profile-section h4 { margin: 0 0 10px 0; color: var(--secondary-text-color); }
-.info-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 15px; align-items: center; }
-.info-grid strong { color: var(--secondary-text-color); }
-textarea#bio-input { width: 100%; box-sizing: border-box; height: 80px; resize: vertical; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; }
-.link-list, .link-input-form { display: flex; flex-direction: column; gap: 10px; }
-.link-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: var(--secondary-surface-color); border-radius: 6px; }
-.link-item a { color: var(--accent-color); text-decoration: none; display: flex; align-items: center; gap: 8px; word-break: break-all; }
+/* Estilos Específicos do Painel de Identidade */
+.identity-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 15px; align-items: center; margin-bottom: 20px; }
+.identity-info-grid i { color: var(--secondary-text-color); }
+.link-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; background-color: var(--secondary-surface-color); padding: 8px; border-radius: 6px; }
+.link-item a { color: var(--primary-text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .link-item a:hover { text-decoration: underline; }
-.google-login-button { display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #4285F4; color: white; padding: 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 1rem; }
+.link-item img { width: 16px; height: 16px; }
+.google-signin-btn { background-color: #4285F4; color: white; }
+.star-rating { display: flex; justify-content: center; margin: 15px 0; }
+.star-rating i { font-size: 1.8rem; color: var(--secondary-surface-color); cursor: pointer; transition: color 0.2s, transform 0.2s; }
+.star-rating i:hover { color: var(--star-color); transform: scale(1.1); }
+.star-rating.user-rated i.selected, .star-rating:hover i:hover ~ i { color: var(--secondary-surface-color) !important; }
+.star-rating:hover i:hover, .star-rating.user-rated i.selected ~ i { color: var(--star-color) !important; }
+.rating-summary { text-align: center; color: var(--secondary-text-color); }
+.rating-summary .fa-star { color: var(--star-color); }
 
-/* Estrelas */
-.star-rating-container { display: flex; align-items: center; gap: 15px; }
-.stars { display: flex; flex-wrap: wrap; gap: 5px; }
-.star { font-size: 1.5rem; color: var(--secondary-surface-color); cursor: pointer; transition: color 0.2s, transform 0.2s; }
-.star:hover { transform: scale(1.2); }
-.star.rated, .star.selected { color: var(--star-color); }
-.rating-info { color: var(--secondary-text-color); }
-.rating-info strong { color: var(--star-color); }
 
-/* RESPONSIVIDADE PARA CELULAR */
+/* === RESPONSIVIDADE PARA CELULAR === */
 @media (max-width: 768px) {
-    #contacts-panel {
-        width: 100%;
-        max-width: none;
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        transform: translateX(0);
-        z-index: 20;
-    }
-    #chat-panel {
-        width: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        transform: translateX(100%);
-        transition: transform 0.3s ease-in-out;
-        z-index: 30;
-    }
+    #contacts-panel { width: 100%; max-width: none; position: absolute; top: 0; left: 0; height: 100%; transform: translateX(0); z-index: 20; }
+    #chat-panel { display: flex; width: 100%; position: absolute; top: 0; left: 0; height: 100%; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 30; }
     body.chat-active #contacts-panel { transform: translateX(-100%); }
     body.chat-active #chat-panel { transform: translateX(0); }
-    
     .mobile-only { display: block; }
 }
