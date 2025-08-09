@@ -1,5 +1,3 @@
-// NO ARQUIVO: js/auth.js (VERSÃO LIMPA E FINAL)
-
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
