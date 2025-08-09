@@ -68,7 +68,7 @@ async function showIdentityPanel(userId) {
 }
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // --- Seletores de Elementos ---
     const loginButton = document.getElementById('login-button');
     const usernameInput = document.getElementById('username-input');
@@ -82,15 +82,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteAccountButton = document.getElementById('delete-account-button');
     const backToContactsButton = document.getElementById('back-to-contacts-button');
     const identityButton = document.getElementById('identity-button');
+    const logoutButton = document.getElementById('logout-button');
 
     // --- Lógica de Inicialização ---
-    // CORREÇÃO: Usando localStorage para verificar se o usuário já estava logado
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
-        setupPresence(userData.id);
-        showChatInterface();
-        loadUserChats(userData.id);
+        // Validar se o usuário ainda existe no banco de dados
+        const userRef = database.ref('users/' + userData.id);
+        const snapshot = await userRef.once('value');
+        if (snapshot.exists()) {
+            // Usuário válido, configurar a interface
+            setupPresence(userData.id);
+            showChatInterface();
+            loadUserChats(userData.id);
+        } else {
+            // Usuário não existe mais, limpar localStorage e mostrar tela de login
+            localStorage.removeItem('currentUser');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+    } else {
+        // Nenhum usuário salvo, mostrar tela de login
+        document.getElementById('login-screen').classList.remove('hidden');
     }
     
     // --- Event Listeners ---
@@ -110,7 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     identityButton.addEventListener('click', () => {
-        // CORREÇÃO: Usando localStorage para pegar os dados do usuário atual
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
         showIdentityPanel(currentUser.id);
     });
@@ -144,6 +156,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if(confirm("ÚLTIMO AVISO: Confirma a exclusão permanente da sua conta?")) {
                 deleteCurrentUserAccount();
             }
+        }
+    });
+
+    logoutButton.addEventListener('click', () => {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (currentUser) {
+            // Atualizar status para offline
+            database.ref('users/' + currentUser.id).update({
+                status: 'offline',
+                last_seen: firebase.database.ServerValue.TIMESTAMP
+            });
+            // Limpar localStorage
+            localStorage.removeItem('currentUser');
+            // Recarregar a página para mostrar a tela de login
+            window.location.reload();
         }
     });
 
@@ -183,9 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (url) {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
-                // CORREÇÃO: Usando localStorage para recarregar o painel
                 const me = JSON.parse(localStorage.getItem('currentUser'));
-                showIdentityPanel(me.id);
+                showIdentityPanel(me.id); // Recarrega o painel
             }
         }
         // Submeter avaliação
