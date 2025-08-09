@@ -1,9 +1,8 @@
-let currentChatListener = null; // Armazena a referência do listener atual para poder removê-lo
+// NO ARQUIVO: js/chat.js
+// VERSÃO COMPLETA E ATUALIZADA
 
-/**
- * Busca usuários no banco de dados pelo nome.
- * @param {string} query - O nome de usuário para buscar.
- */
+let currentChatListener = null;
+
 function searchUsers(query) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const usersRef = database.ref('users');
@@ -12,7 +11,6 @@ function searchUsers(query) {
         const users = [];
         snapshot.forEach(childSnapshot => {
             const user = childSnapshot.val();
-            // Não mostra o próprio usuário na busca
             if (user.id !== currentUser.id) {
                 users.push(user);
             }
@@ -21,27 +19,13 @@ function searchUsers(query) {
     });
 }
 
-/**
- * Inicia uma nova conversa com outro usuário.
- * @param {Object} otherUser - O objeto do usuário com quem iniciar o chat.
- */
 function startChatWith(otherUser) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    
-    // Cria um ID de chat único e consistente para ambos os usuários
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
-    
-    // Adiciona o chat na lista de chats de ambos os usuários
     database.ref(`user_chats/${currentUser.id}/${chatId}`).set({ withUsername: otherUser.username, withUserId: otherUser.id });
     database.ref(`user_chats/${otherUser.id}/${chatId}`).set({ withUsername: currentUser.username, withUserId: currentUser.id });
-
-    // A UI será atualizada pelo listener em loadUserChats
 }
 
-/**
- * Carrega a lista de conversas existentes do usuário.
- * @param {string} userId - O ID do usuário atual.
- */
 function loadUserChats(userId) {
     const userChatsRef = database.ref(`user_chats/${userId}`);
     userChatsRef.on('child_added', snapshot => {
@@ -50,10 +34,6 @@ function loadUserChats(userId) {
     });
 }
 
-/**
- * Ouve as atualizações de status de um usuário específico e atualiza a UI.
- * @param {string} userId - O ID do usuário para "observar".
- */
 function listenForStatusUpdates(userId) {
     const userStatusRef = database.ref(`users/${userId}`);
     userStatusRef.on('value', snapshot => {
@@ -64,34 +44,22 @@ function listenForStatusUpdates(userId) {
     });
 }
 
-/**
- * Carrega todas as mensagens de um chat específico.
- * @param {string} chatId - O ID do chat a ser carregado.
- */
 function loadChatMessages(chatId) {
     const messagesArea = document.getElementById('messages-area');
     messagesArea.innerHTML = '';
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-    // Remove o listener do chat anterior para não receber mensagens de duas conversas ao mesmo tempo
     if (currentChatListener) {
         currentChatListener.off();
     }
 
     const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(50);
-    
-    // child_added é eficiente e carrega mensagens existentes e novas
     currentChatListener = messagesRef.on('child_added', (snapshot) => {
         const message = snapshot.val();
         displayMessage(message, currentUser.id);
     });
 }
 
-/**
- * Envia uma mensagem de texto para o chat ativo.
- * @param {string} chatId - O ID do chat.
- * @param {string} text - O texto da mensagem.
- */
 function sendTextMessage(chatId, text) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const message = {
@@ -102,10 +70,6 @@ function sendTextMessage(chatId, text) {
     database.ref('chats/' + chatId).push(message);
 }
 
-/**
- * Inicia o processo de upload de foto, convertendo-a para Base64.
- * @param {string} chatId - O ID do chat para onde enviar a foto.
- */
 function handlePhotoUpload(chatId) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -113,14 +77,12 @@ function handlePhotoUpload(chatId) {
     input.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
-
-        if (file.size > 500 * 1024) { // Limite de 500 KB
+        if (file.size > 500 * 1024) {
             alert("A imagem é muito grande! O limite para este método é de 500 KB.");
             return;
         }
-
         const reader = new FileReader();
-        reader.readAsDataURL(file); // Converte para Base64
+        reader.readAsDataURL(file);
         reader.onload = () => {
             sendImageMessage(chatId, reader.result);
         };
@@ -141,4 +103,17 @@ function sendImageMessage(chatId, base64String) {
         timestamp: firebase.database.ServerValue.TIMESTAMP
     };
     database.ref('chats/' + chatId).push(message);
+}
+
+/**
+ * Converte texto em Markdown para HTML seguro.
+ * @param {string} text - O texto a ser convertido.
+ * @returns {string} - O HTML sanitizado.
+ */
+function convertMarkdownToHtml(text) {
+    // 1. Converte o Markdown para HTML usando a biblioteca 'marked'.
+    const rawHtml = marked.parse(text);
+    // 2. SANITIZA o HTML para remover qualquer código malicioso (XSS). ESSENCIAL PARA SEGURANÇA.
+    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+    return sanitizedHtml;
 }
