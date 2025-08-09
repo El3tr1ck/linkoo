@@ -27,10 +27,8 @@
                 <button id="add-contact-button"><i class="fa-solid fa-user-plus"></i> Novo Chat</button>
                 <button id="new-group-button"><i class="fa-solid fa-users"></i> Novo Grupo</button>
             </div>
-            <div id="contact-list"></div>
-        </div>
-
-<div class="contacts-footer">
+            <div id="contact-list" class="scrollable-list"></div>
+            <div class="contacts-footer">
                 <div id="current-user-info"></div>
                 <button id="delete-account-button" class="danger-button"><i class="fa-solid fa-user-slash"></i> Apagar Conta</button>
             </div>
@@ -49,9 +47,7 @@
                     </div>
                     <div class="chat-header-options">
                         <button id="chat-options-button" class="icon-button"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                        <div id="chat-options-menu" class="context-menu hidden">
-                            <!-- Opções serão inseridas aqui pelo JS -->
-                        </div>
+                        <div id="chat-options-menu" class="context-menu hidden"></div>
                     </div>
                 </div>
                 <div id="messages-area"></div>
