@@ -1,13 +1,17 @@
-// NO ARQUIVO: js/ui.js (VERSÃO COMPLETA E CORRIGIDA)
-
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
     document.getElementById('chat-container').classList.add('hidden');
 }
 
 function showChatInterface() {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
+    
+    const userInfoDiv = document.getElementById('current-user-info');
+    if (currentUser) {
+        userInfoDiv.innerHTML = `Logado como: <strong>${currentUser.username}</strong><br><span>ID: ${currentUser.id}</span>`;
+    }
 }
 
 function toggleOverlay(overlayId, show, contentGenerator) {
@@ -57,11 +61,7 @@ function updateContactStatus(userId, status) {
     const statusDot = document.getElementById(`status-${userId}`);
     if (statusDot) {
         statusDot.innerHTML = `<i class="fa-solid fa-circle"></i>`;
-        if (status === 'online') {
-            statusDot.classList.add('online');
-        } else {
-            statusDot.classList.remove('online');
-        }
+        statusDot.classList.toggle('online', status === 'online');
     }
 }
 
@@ -78,7 +78,6 @@ function displayMessage(message, currentUserId) {
         content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
     }
     
-    // Adiciona o nome do remetente para mensagens de grupo recebidas
     if (activeChat.type === 'group' && message.senderId !== currentUserId) {
         bubble.innerHTML = `<strong class="sender-name">${message.senderName || ''}</strong>${content}`;
     } else {
@@ -88,8 +87,6 @@ function displayMessage(message, currentUserId) {
     messagesArea.appendChild(bubble);
     messagesArea.scrollTop = messagesArea.scrollHeight;
 }
-
-// --- NOVOS PAINÉIS (OVERLAYS) ---
 
 function buildAddContactPanel() {
     return `
@@ -101,32 +98,55 @@ function buildAddContactPanel() {
         </div>`;
 }
 
-function buildNewGroupPanel() {
+function displaySearchResults(users) {
+    const searchResultsDiv = document.getElementById('search-results');
+    searchResultsDiv.innerHTML = '';
+    if (!searchResultsDiv) return;
+    
+    if (users.length === 0) {
+        searchResultsDiv.innerHTML = '<p style="padding: 10px;">Nenhum usuário encontrado.</p>';
+        return;
+    }
+    users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'list-item';
+        userDiv.style.justifyContent = 'space-between';
+        userDiv.innerHTML = `
+            <div>
+                <strong>${user.username}</strong><br><small>${user.id}</small>
+            </div>
+            <button class="action-button add-user-btn" data-user-id='${user.id}' data-user-username='${user.username}'>Conversar</button>
+        `;
+        searchResultsDiv.appendChild(userDiv);
+    });
+}
+
+async function buildNewGroupPanelContent() {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    let userListHtml = '';
-    database.ref('users').once('value', snapshot => {
-        snapshot.forEach(childSnapshot => {
-            const user = childSnapshot.val();
-            if (user.id !== currentUser.id) {
-                userListHtml += `
+    const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
+    const allUsersSnapshot = await database.ref('users').once('value');
+    const allUsers = allUsersSnapshot.val();
+
+    let contactsListHtml = '<p style="padding: 10px;">Você precisa ter conversas 1-a-1 para adicionar pessoas a um grupo.</p>';
+    
+    const directChatsSnapshot = await userChatsRef.orderByChild('type').equalTo('direct').once('value');
+    if (directChatsSnapshot.exists()) {
+        contactsListHtml = '';
+        directChatsSnapshot.forEach(childSnapshot => {
+            const chatInfo = childSnapshot.val();
+            const contactUser = allUsers ? allUsers[chatInfo.withUserId] : null;
+            if (contactUser) {
+                 contactsListHtml += `
                     <label class="list-item">
-                        <input type="checkbox" value="${user.id}">
-                        <span>${user.username} (${user.id})</span>
+                        <input type="checkbox" value="${contactUser.id}">
+                        <span>${contactUser.username} (${contactUser.id})</span>
                     </label>`;
             }
         });
-        document.getElementById('group-user-list').innerHTML = userListHtml;
-    });
+    }
 
-    return `
-        <div class="overlay-content">
-            <button class="close-button" onclick="toggleOverlay('new-group-overlay', false)">&times;</button>
-            <h3>Criar Novo Grupo</h3>
-            <input type="text" id="group-name-input" placeholder="Nome do Grupo (suporta Markdown)">
-            <h4>Selecionar Participantes:</h4>
-            <div id="group-user-list" class="scrollable-list"></div>
-            <button id="create-group-button-action" class="action-button">Criar Grupo</button>
-        </div>`;
+    const listContainer = document.getElementById('group-user-list');
+    if(listContainer) listContainer.innerHTML = contactsListHtml;
 }
 
 function buildParticipantsPanel(participants) {
