@@ -1,9 +1,20 @@
-// NO ARQUIVO: js/chat.js (SUBSTITUIR TUDO)
 let currentChatListener = null;
 
-// --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
-
-function searchUsers(query) { /* ... (sem alterações) ... */ }
+function searchUsers(query) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const usersRef = database.ref('users');
+    
+    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
+        const users = [];
+        snapshot.forEach(childSnapshot => {
+            const user = childSnapshot.val();
+            if (user.id !== currentUser.id) {
+                users.push(user);
+            }
+        });
+        displaySearchResults(users);
+    });
+}
 
 function startChatWith(otherUser) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -27,16 +38,35 @@ function loadUserChats(userId) {
     });
 }
 
-function listenForStatusUpdates(userId) { /* ... (sem alterações) ... */ }
+function listenForStatusUpdates(userId) {
+    const userStatusRef = database.ref(`users/${userId}`);
+    userStatusRef.on('value', snapshot => {
+        const userData = snapshot.val();
+        if (userData) {
+            updateContactStatus(userId, userData.status);
+        }
+    });
+}
 
-function loadChatMessages(chatId) { /* ... (sem alterações) ... */ }
+function loadChatMessages(chatId) {
+    const messagesArea = document.getElementById('messages-area');
+    messagesArea.innerHTML = '';
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-// --- FUNÇÕES DE ENVIO DE MENSAGEM ---
+    if (currentChatListener) {
+        currentChatListener.off();
+    }
+
+    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(50);
+    currentChatListener = messagesRef.on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        displayMessage(message, currentUser.id);
+    });
+}
 
 async function sendTextMessage(chatId, text, chatType) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-    // Para chats diretos, verifica se o usuário está bloqueado
     if (chatType === 'direct') {
         const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
         const isBlocked = await checkIfBlocked(otherUserId);
@@ -46,13 +76,44 @@ async function sendTextMessage(chatId, text, chatType) {
         }
     }
     
-    const message = { senderId: currentUser.id, senderName: currentUser.username, text: text, timestamp: firebase.database.ServerValue.TIMESTAMP };
+    const message = { 
+        senderId: currentUser.id, 
+        senderName: currentUser.username, 
+        text: text, 
+        timestamp: firebase.database.ServerValue.TIMESTAMP 
+    };
     database.ref('chats/' + chatId).push(message);
 }
 
-function sendImageMessage(chatId, base64String) { /* ... (sem alterações) ... */ }
+function handlePhotoUpload(chatId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500 * 1024) {
+            alert("A imagem é muito grande! O limite para este método é de 500 KB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            sendImageMessage(chatId, reader.result);
+        };
+    };
+    input.click();
+}
 
-// --- NOVAS FUNÇÕES DE GRUPO ---
+function sendImageMessage(chatId, base64String) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const message = {
+        senderId: currentUser.id,
+        imageUrl: base64String,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    database.ref('chats/' + chatId).push(message);
+}
 
 function createGroup(groupName, participantIds) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -60,7 +121,7 @@ function createGroup(groupName, participantIds) {
 
     const participants = {};
     participantIds.forEach(id => { participants[id] = true; });
-    participants[currentUser.id] = true; // Adiciona o criador
+    participants[currentUser.id] = true;
 
     const groupData = {
         name: groupName,
@@ -70,7 +131,6 @@ function createGroup(groupName, participantIds) {
 
     database.ref('groups/' + groupId).set(groupData);
 
-    // Adiciona o grupo na lista de conversas de cada participante
     const chatData = { type: 'group', groupName: groupName };
     Object.keys(participants).forEach(userId => {
         database.ref(`user_chats/${userId}/${groupId}`).set(chatData);
@@ -79,13 +139,9 @@ function createGroup(groupName, participantIds) {
 
 function leaveGroup(groupId) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    // Remove o usuário da lista de participantes do grupo
     database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
-    // Remove o grupo da lista de conversas do usuário
     database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
 }
-
-// --- NOVAS FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
 
 function blockUser(otherUserId) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -108,10 +164,30 @@ function deleteConversation(chatId) {
     database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
 }
 
+async function deleteCurrentUserAccount() {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
+    const groupsSnapshot = await database.ref('groups').once('value');
+    const groups = groupsSnapshot.val();
+    if (groups) {
+        for (const groupId in groups) {
+            if (groups[groupId].participants && groups[groupId].participants[currentUser.id]) {
+                database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
+            }
+        }
+    }
+
+    await database.ref('users/' + currentUser.id).remove();
+    await database.ref('user_chats/' + currentUser.id).remove();
+    await database.ref('blocked_users/' + currentUser.id).remove();
+
+    sessionStorage.clear();
+    window.location.reload();
+}
+
 function convertMarkdownToHtml(text) {
-    // 1. Converte o Markdown para HTML usando a biblioteca 'marked'.
     const rawHtml = marked.parse(text);
-    // 2. SANITIZA o HTML para remover qualquer código malicioso (XSS). ESSENCIAL PARA SEGURANÇA.
     const sanitizedHtml = DOMPurify.sanitize(rawHtml);
     return sanitizedHtml;
 }
