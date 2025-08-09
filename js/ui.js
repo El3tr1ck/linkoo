@@ -14,15 +14,13 @@ function showChatInterface() {
     }
 }
 
-function toggleOverlay(overlayId, show, contentGenerator) {
+function toggleOverlay(overlayId, show) {
     const overlay = document.getElementById(overlayId);
     if (show) {
-        if (contentGenerator) {
-            overlay.innerHTML = contentGenerator();
-        }
         overlay.classList.remove('hidden');
     } else {
         overlay.classList.add('hidden');
+        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar
     }
 }
 
@@ -52,9 +50,7 @@ function addUserToContactsList(chatInfo) {
 
 function removeContactFromList(chatId) {
     const contactItem = document.getElementById(`contact-${chatId}`);
-    if (contactItem) {
-        contactItem.remove();
-    }
+    if (contactItem) contactItem.remove();
 }
 
 function updateContactStatus(userId, status) {
@@ -79,7 +75,8 @@ function displayMessage(message, currentUserId) {
     }
     
     if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        bubble.innerHTML = `<strong class="sender-name" data-id="${message.senderId}">${message.senderName || ''}</strong>${content}`;
+        // Adiciona o nome do remetente clicável para grupos
+        bubble.innerHTML = `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
     } else {
         bubble.innerHTML = content;
     }
@@ -87,6 +84,8 @@ function displayMessage(message, currentUserId) {
     messagesArea.appendChild(bubble);
     messagesArea.scrollTop = messagesArea.scrollHeight;
 }
+
+// --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
 
 function buildAddContactPanel() {
     return `
@@ -163,88 +162,87 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
-async function buildProfilePanel(userId) {
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-    const isOwnProfile = userId === currentUser.id;
+// --- NOVA FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
 
-    const userSnapshot = await database.ref(`users/${userId}`).once('value');
-    if (!userSnapshot.exists()) return '<h3>Usuário não encontrado.</h3>';
-    const userData = userSnapshot.val();
+async function buildIdentityPanel(userId) {
+    const me = JSON.parse(sessionStorage.getItem('currentUser'));
+    const isMyProfile = userId === me.id;
 
-    const bioHtml = isOwnProfile ? 
-        `<textarea id="bio-input" placeholder="Escreva algo sobre você...">${userData.bio || ''}</textarea>` :
-        `<p>${convertMarkdownToHtml(userData.bio || '<i>Nenhuma biografia definida.</i>')}</p>`;
-
-    let linksHtml = '<p><i>Nenhum link adicionado.</i></p>';
-    if (userData.links && Object.keys(userData.links).length > 0) {
-        linksHtml = '<div class="link-list">';
-        for (const linkId in userData.links) {
-            const link = userData.links[linkId];
-            linksHtml += `
-                <div class="link-item">
-                    <a href="${link.url}" target="_blank">
-                        <i class="fa-solid fa-link"></i> ${link.url}
-                    </a>
-                    ${isOwnProfile ? `<button class="icon-button danger remove-link-btn" data-link-id="${linkId}">&times;</button>` : ''}
-                </div>`;
-        }
-        linksHtml += '</div>';
+    const userRef = database.ref(`users/${userId}`);
+    const snapshot = await userRef.once('value');
+    if (!snapshot.exists()) {
+        alert("Usuário não encontrado.");
+        return;
     }
-    const addLinkHtml = isOwnProfile ? `
-        <div class="link-input-form">
-            <input type="text" id="new-link-input" placeholder="https://exemplo.com">
-            <button id="add-link-btn" class="action-button">Adicionar Link</button>
-        </div>` : '';
+    const userData = snapshot.val();
     
-    const googleLoginHtml = (isOwnProfile && !userData.googleUID) ? `
-        <div class="profile-section">
-            <h4>Conta</h4>
-            <p>Vincule sua conta do Google para avaliar outros usuários.</p>
-            <button id="google-login-btn" class="google-login-button"><i class="fa-brands fa-google"></i> Fazer login com Google</button>
-        </div>` : '';
-
-    const avgRating = userData.avgRating ? userData.avgRating.toFixed(1) : 0;
-    const ratingCount = userData.ratingCount || 0;
-    let starsHtml = '';
-    for (let i = 1; i <= 10; i++) {
-        const starClass = i <= Math.round(avgRating) ? 'rated' : '';
-        starsHtml += `<i class="fa-solid fa-star star ${starClass}" data-score="${i}"></i>`;
+    const joinDate = userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('pt-BR') : 'Desconhecida';
+    let linksHtml = 'Nenhum link adicionado.';
+    if (userData.links) {
+        linksHtml = Object.entries(userData.links).map(([key, value]) => `
+            <div class="link-item">
+                <a href="${value.url}" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${value.url}" alt="ícone">
+                    <span>${value.url}</span>
+                </a>
+                ${isMyProfile ? `<button class="icon-button" onclick="removeUserLink('${key}')">&times;</button>` : ''}
+            </div>
+        `).join('');
     }
-    const ratingHtml = `
-        <div class="star-rating-container">
-            <div class="stars" ${isOwnProfile || !currentUser.googleUID ? '' : `data-target-user-id="${userId}"`}>
-                ${starsHtml}
-            </div>
-            <span class="rating-info"><strong>${avgRating}</strong> (${ratingCount} avaliações)</span>
-        </div>`;
 
-    return `
-        <div class="overlay-content profile-panel">
-            <button class="close-button" onclick="toggleOverlay('profile-overlay', false)">&times;</button>
-            <h3>Identidade de ${userData.username}</h3>
+    // Lógica de Avaliação
+    let ratingHtml = '';
+    const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
+    const totalRatings = userData.ratings ? userData.ratings.count : 0;
+    const hasRated = userData.ratedBy && userData.ratedBy[me.id];
+
+    if (isMyProfile) {
+        ratingHtml = `<div class="rating-summary">Sua Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i> (${totalRatings} avaliações)</div>`;
+    } else if (hasRated) {
+        ratingHtml = `<div class="rating-summary">Você já avaliou este usuário. Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i></div>`;
+    } else {
+        ratingHtml = `
+            <h4>Avalie este usuário:</h4>
+            <div class="star-rating" data-userid="${userId}">
+                ${[...Array(10)].map((_, i) => `<i class="fa-regular fa-star" data-value="${i + 1}"></i>`).join('')}
+            </div>
+            <button id="submit-rating-btn" class="action-button hidden">Enviar Avaliação</button>
+        `;
+    }
+    
+    const panelHtml = `
+    <div class="overlay-content">
+        <button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button>
+        <h3>Identidade de ${userData.username}</h3>
+        <div class="scrollable-list" style="padding: 10px;">
+            <div class="identity-info-grid">
+                <i class="fa-solid fa-user"></i> <span>${userData.username}</span>
+                <i class="fa-solid fa-hashtag"></i> <span>${userData.id}</span>
+                <i class="fa-solid fa-calendar-alt"></i> <span>Entrou em: ${joinDate}</span>
+                ${userData.googleEmail ? `<i class="fa-brands fa-google"></i> <span>${userData.googleEmail}</span>` : ''}
+            </div>
             
-            <div class="profile-section">
-                <div class="info-grid">
-                    <strong>Nome:</strong><span>${userData.username}</span>
-                    <strong>ID:</strong><span>${userData.id}</span>
-                    <strong>Email:</strong><span>${userData.email || '<i>Não vinculado</i>'}</span>
-                    <strong>Membro desde:</strong><span>${new Date(userData.joinDate).toLocaleDateString()}</span>
-                </div>
-            </div>
-            <div class="profile-section">
-                <h4>Biografia</h4>
-                ${bioHtml}
-            </div>
-            <div class="profile-section">
-                <h4>Links</h4>
-                ${linksHtml}
-                ${addLinkHtml}
-            </div>
-            ${googleLoginHtml}
-            <div class="profile-section">
-                <h4>Avaliação</h4>
-                ${ratingHtml}
-            </div>
+            ${!isMyProfile && userData.googleEmail ? '' : (isMyProfile && !userData.googleEmail ? '<button id="link-google-btn" class="google-signin-btn action-button"><i class="fa-brands fa-google"></i> Vincular Conta Google</button>' : '')}
+            
+            <hr>
+            <h4>Biografia</h4>
+            ${isMyProfile 
+                ? `<textarea id="bio-textarea" placeholder="Conte um pouco sobre você...">${userData.bio || ''}</textarea><button id="save-bio-btn" class="action-button">Salvar Bio</button>` 
+                : `<p>${userData.bio || 'Nenhuma biografia definida.'}</p>`
+            }
+            
+            <hr>
+            <h4>Links</h4>
+            ${linksHtml}
+            ${isMyProfile 
+                ? `<div style="display: flex; gap: 10px; margin-top: 10px;"><input type="text" id="new-link-input" placeholder="https://exemplo.com"><button id="add-link-btn" class="action-button">Add</button></div>` 
+                : ''
+            }
+            <hr>
+            ${ratingHtml}
         </div>
+    </div>
     `;
+    
+    return panelHtml;
 }
