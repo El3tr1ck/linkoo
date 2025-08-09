@@ -28,7 +28,7 @@ async function loginUser(username) {
     try {
         await userRef.set(userData);
         
-        localStorage.setItem('currentUser', JSON.stringify(userData));
+        localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
         
         setupPresence(userId);
         showChatInterface();
