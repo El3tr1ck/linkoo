@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } else {
         // Nenhum usuário salvo, mostrar tela de login
-        document.getElementById('login-screen').classList.remove('hidden');
+       document.getElementById('login-screen').classList.remove('hidden');
     }
     
     // --- Event Listeners ---
