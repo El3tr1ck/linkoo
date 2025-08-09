@@ -8,20 +8,21 @@ async function setActiveChat(chatInfo) {
 
     const chatHeaderUsername = document.getElementById('chat-header-username');
     const chatHeaderDetails = document.getElementById('chat-header-details');
-    const chatHeaderClickable = document.getElementById('chat-header-clickable-area');
     const optionsMenu = document.getElementById('chat-options-menu');
-    const messagesArea = document.getElementById('messages-area');
     
-    chatHeaderClickable.onclick = null;
-    chatHeaderDetails.onclick = null;
     optionsMenu.innerHTML = '';
-    messagesArea.innerHTML = '';
-
+    
+    // ATRIBUI o ID do usuário ao cabeçalho para ser clicável
+    chatHeaderUsername.dataset.userid = '';
+    if (chatInfo.type === 'direct') {
+        chatHeaderUsername.dataset.userid = chatInfo.withUserId;
+    }
+    
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.innerHTML = chatInfo.withUsername;
         chatHeaderDetails.innerHTML = chatInfo.withUserId;
+        chatHeaderDetails.onclick = null;
         chatHeaderDetails.style.cursor = 'default';
-        chatHeaderClickable.dataset.userId = chatInfo.withUserId;
         
         const isBlocked = await checkIfBlocked(chatInfo.withUserId);
         optionsMenu.innerHTML = `
@@ -30,7 +31,6 @@ async function setActiveChat(chatInfo) {
         `;
     } else if (chatInfo.type === 'group') {
         chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
-        chatHeaderClickable.dataset.userId = ''; // Remove o click para o perfil do grupo no header
         
         const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
         if (!groupSnapshot.exists()) return;
@@ -43,13 +43,14 @@ async function setActiveChat(chatInfo) {
         const participantNames = participants.map(p => p.username).join(', ');
 
         chatHeaderDetails.innerHTML = participantNames.substring(0, 50) + (participantNames.length > 50 ? '...' : '');
-        chatHeaderDetails.style.cursor = 'pointer';
+        chatHeaderDetails.classList.add('clickable');
         chatHeaderDetails.onclick = () => {
-            toggleOverlay('participants-overlay', true, () => buildParticipantsPanel(participants));
+            toggleOverlay('participants-overlay', true);
+            document.getElementById('participants-overlay').innerHTML = buildParticipantsPanel(participants);
         };
         optionsMenu.innerHTML = `<button id="leave-group-button" class="danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Grupo</button>`;
     }
-
+    
     loadChatMessages(chatInfo.id);
 
     document.getElementById('chat-conversation-screen').classList.remove('hidden');
@@ -59,7 +60,16 @@ async function setActiveChat(chatInfo) {
     document.body.classList.add('chat-active');
 }
 
+// NOVA FUNÇÃO para abrir o painel de identidade
+async function showIdentityPanel(userId) {
+    const overlay = document.getElementById('identity-overlay');
+    overlay.innerHTML = await buildIdentityPanel(userId);
+    toggleOverlay('identity-overlay', true);
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Seletores de Elementos ---
     const loginButton = document.getElementById('login-button');
     const usernameInput = document.getElementById('username-input');
     const addContactButton = document.getElementById('add-contact-button');
@@ -73,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToContactsButton = document.getElementById('back-to-contacts-button');
     const identityButton = document.getElementById('identity-button');
 
+    // --- Lógica de Inicialização ---
     const savedUser = sessionStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
@@ -81,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUserChats(userData.id);
     }
     
+    // --- Event Listeners ---
     loginButton.addEventListener('click', () => loginUser(usernameInput.value));
     usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value); });
 
@@ -98,13 +110,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     identityButton.addEventListener('click', () => {
         const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-        if (currentUser) {
-            toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
-        }
+        showIdentityPanel(currentUser.id);
     });
 
     addContactButton.addEventListener('click', () => {
-        toggleOverlay('add-contact-overlay', true, buildAddContactPanel);
+        toggleOverlay('add-contact-overlay', true);
+        document.getElementById('add-contact-overlay').innerHTML = buildAddContactPanel();
         setTimeout(() => {
             const searchInput = document.getElementById('search-user-input');
             if(searchInput) searchInput.addEventListener('keyup', (e) => searchUsers(e.target.value));
@@ -134,14 +145,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('click', async (e) => {
+    // --- DELEGAÇÃO DE EVENTOS PARA ITENS DINÂMICOS ---
+    document.addEventListener('click', (e) => {
         const target = e.target;
-
+        // Botão "Conversar" na busca
         if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
+        // Botão "Criar Grupo"
         if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
@@ -152,58 +165,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
-        
-        const clickableHeader = target.closest('#chat-header-clickable-area');
-        if (clickableHeader && clickableHeader.dataset.userId) {
-            toggleOverlay('profile-overlay', true, () => buildProfilePanel(clickableHeader.dataset.userId));
+        // Nomes clicáveis para abrir identidade
+        if (target.classList.contains('clickable-name') && target.dataset.userid) {
+            showIdentityPanel(target.dataset.userid);
         }
-        if (target.classList.contains('sender-name') && target.dataset.id) {
-            toggleOverlay('profile-overlay', true, () => buildProfilePanel(target.dataset.id));
+        // Lógica do painel de identidade
+        if(target.id === 'link-google-btn') linkGoogleAccount();
+        if(target.id === 'save-bio-btn') {
+            const bio = document.getElementById('bio-textarea').value;
+            updateUserBio(bio);
+            alert('Biografia salva!');
         }
-        if (target.id === 'google-login-btn') {
-            linkGoogleAccount();
-        }
-        if (target.id === 'add-link-btn') {
-            const urlInput = document.getElementById('new-link-input');
-            if (urlInput && urlInput.value) {
-                const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-                const linkId = database.ref().push().key;
-                await database.ref(`users/${currentUser.id}/links/${linkId}`).set({ url: urlInput.value });
-                toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
+        if(target.id === 'add-link-btn') {
+            const url = document.getElementById('new-link-input').value;
+            if (url) {
+                addUserLink(url);
+                document.getElementById('new-link-input').value = '';
+                const me = JSON.parse(sessionStorage.getItem('currentUser'));
+                showIdentityPanel(me.id); // Recarrega o painel
             }
         }
-        const removeLinkBtn = target.closest('.remove-link-btn');
-        if (removeLinkBtn) {
-            const linkId = removeLinkBtn.dataset.linkId;
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-            await database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
-            toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
-        }
-        
-        const star = target.closest('.star');
-        const starContainer = target.closest('.stars');
-        if (star && starContainer && starContainer.dataset.targetUserId) {
-            const score = parseInt(star.dataset.score);
-            const targetUserId = starContainer.dataset.targetUserId;
-            try {
-                await rateUser(targetUserId, score);
-                alert(`Você avaliou com ${score} estrelas!`);
-                toggleOverlay('profile-overlay', true, () => buildProfilePanel(targetUserId));
-            } catch (error) {
-                console.error("Erro ao avaliar:", error);
-                alert(error.message || "Não foi possível registrar sua avaliação.");
-            }
+        // Submeter avaliação
+        if(target.id === 'submit-rating-btn' && !target.classList.contains('hidden')) {
+            const rating = parseInt(target.dataset.rating, 10);
+            const userId = target.parentElement.querySelector('.star-rating').dataset.userid;
+            submitUserRating(userId, rating);
+            alert(`Você avaliou com ${rating} estrelas!`);
+            showIdentityPanel(userId); // Recarrega para mostrar que já foi avaliado
         }
     });
     
-    document.addEventListener('blur', (e) => {
-        if (e.target && e.target.id === 'bio-input') {
-            const newBio = e.target.value;
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-            database.ref(`users/${currentUser.id}/bio`).set(newBio);
+    // Delegação de eventos para as estrelas
+    document.addEventListener('mouseover', e => {
+        if (e.target.matches('.star-rating i')) {
+            const allStars = e.target.parentElement.querySelectorAll('i');
+            const hoverValue = parseInt(e.target.dataset.value, 10);
+            allStars.forEach((star, index) => {
+                star.classList.toggle('fa-solid', index < hoverValue);
+                star.classList.toggle('fa-regular', index >= hoverValue);
+            });
         }
-    }, true);
+    });
+    document.addEventListener('mouseout', e => {
+        if (e.target.matches('.star-rating, .star-rating *')) {
+            const ratingContainer = e.target.closest('.star-rating');
+            const selectedValue = parseInt(ratingContainer.dataset.selectedValue || '0', 10);
+            ratingContainer.querySelectorAll('i').forEach((star, index) => {
+                 star.classList.toggle('fa-solid', index < selectedValue);
+                 star.classList.toggle('fa-regular', index >= selectedValue);
+            });
+        }
+    });
+     document.addEventListener('click', e => {
+        if (e.target.matches('.star-rating i')) {
+            const ratingContainer = e.target.parentElement;
+            const rating = parseInt(e.target.dataset.value, 10);
+            ratingContainer.dataset.selectedValue = rating;
+            const submitBtn = ratingContainer.parentElement.querySelector('#submit-rating-btn');
+            submitBtn.classList.remove('hidden');
+            submitBtn.dataset.rating = rating;
+        }
+    });
 
+
+    // --- LISTENERS DOS MENUS ---
     chatOptionsButton.addEventListener('click', (e) => {
         e.stopPropagation();
         document.getElementById('chat-options-menu').classList.toggle('hidden');
