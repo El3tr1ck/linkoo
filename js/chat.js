@@ -1,94 +1,144 @@
-// Iniciar uma conversa com um usuário
+let currentChatListener = null; // Armazena a referência do listener atual para poder removê-lo
+
+/**
+ * Busca usuários no banco de dados pelo nome.
+ * @param {string} query - O nome de usuário para buscar.
+ */
+function searchUsers(query) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const usersRef = database.ref('users');
+    
+    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
+        const users = [];
+        snapshot.forEach(childSnapshot => {
+            const user = childSnapshot.val();
+            // Não mostra o próprio usuário na busca
+            if (user.id !== currentUser.id) {
+                users.push(user);
+            }
+        });
+        displaySearchResults(users);
+    });
+}
+
+/**
+ * Inicia uma nova conversa com outro usuário.
+ * @param {Object} otherUser - O objeto do usuário com quem iniciar o chat.
+ */
 function startChatWith(otherUser) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     
-    // Cria um ID de chat único e ordenado para que seja o mesmo para ambos os usuários
-    const chatID = [currentUser.id, otherUser.id].sort().join('_');
-    
-    const chatRef = database.ref('chats/' + chatID);
+    // Cria um ID de chat único e consistente para ambos os usuários
+    const chatId = [currentUser.id, otherUser.id].sort().join('_');
     
     // Adiciona o chat na lista de chats de ambos os usuários
-    database.ref(`user_chats/${currentUser.id}/${chatID}`).set({
-        withUsername: otherUser.username,
-        withUserId: otherUser.id
-    });
-    database.ref(`user_chats/${otherUser.id}/${chatID}`).set({
-        withUsername: currentUser.username,
-        withUserId: currentUser.id
-    });
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).set({ withUsername: otherUser.username, withUserId: otherUser.id });
+    database.ref(`user_chats/${otherUser.id}/${chatId}`).set({ withUsername: currentUser.username, withUserId: currentUser.id });
 
-    // Abre a janela de chat
-    loadChat(chatID, otherUser.username, otherUser.id);
+    // A UI será atualizada pelo listener em loadUserChats
 }
 
-// Carrega as mensagens de um chat específico
-function loadChat(chatID, otherUsername, otherUserId) {
-    // Atualiza o cabeçalho
-    document.getElementById('chat-header-info').innerHTML = `<h2>${otherUsername} <small>(${otherUserId})</small></h2>`;
-
-    const messagesArea = document.getElementById('messages-area');
-    messagesArea.innerHTML = ''; // Limpa mensagens antigas
-    
-    const messagesRef = database.ref('chats/' + chatID).orderByChild('timestamp').limitToLast(50);
-    
-    messagesRef.on('child_added', (snapshot) => {
-        const message = snapshot.val();
-        displayMessage(message);
+/**
+ * Carrega a lista de conversas existentes do usuário.
+ * @param {string} userId - O ID do usuário atual.
+ */
+function loadUserChats(userId) {
+    const userChatsRef = database.ref(`user_chats/${userId}`);
+    userChatsRef.on('child_added', snapshot => {
+        const chatInfo = snapshot.val();
+        addUserToContactsList(snapshot.key, { username: chatInfo.withUsername, id: chatInfo.withUserId });
     });
 }
 
-// Exibe uma única mensagem na tela
-function displayMessage(message) {
+/**
+ * Ouve as atualizações de status de um usuário específico e atualiza a UI.
+ * @param {string} userId - O ID do usuário para "observar".
+ */
+function listenForStatusUpdates(userId) {
+    const userStatusRef = database.ref(`users/${userId}`);
+    userStatusRef.on('value', snapshot => {
+        const userData = snapshot.val();
+        if (userData) {
+            updateContactStatus(userId, userData.status);
+        }
+    });
+}
+
+/**
+ * Carrega todas as mensagens de um chat específico.
+ * @param {string} chatId - O ID do chat a ser carregado.
+ */
+function loadChatMessages(chatId) {
     const messagesArea = document.getElementById('messages-area');
+    messagesArea.innerHTML = '';
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-    const bubble = document.createElement('div');
-    bubble.classList.add('message-bubble');
-    bubble.classList.add(message.senderId === currentUser.id ? 'sent' : 'received');
-
-    // Suporte a Markdown
-    // A biblioteca 'marked' converte o texto em Markdown para HTML
-    if (message.text) {
-        bubble.innerHTML = marked.parse(message.text);
-    } else if (message.imageUrl) { // Exibe a imagem
-        bubble.innerHTML = `<img src="${message.imageUrl}" alt="Imagem enviada" style="max-width: 100%;">`;
+    // Remove o listener do chat anterior para não receber mensagens de duas conversas ao mesmo tempo
+    if (currentChatListener) {
+        currentChatListener.off();
     }
 
-    messagesArea.prepend(bubble); // Adiciona no início por causa do flex-direction: column-reverse
+    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(50);
+    
+    // child_added é eficiente e carrega mensagens existentes e novas
+    currentChatListener = messagesRef.on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        displayMessage(message, currentUser.id);
+    });
 }
 
-
-// Envia uma mensagem de texto
-function sendTextMessage(chatID) {
-    const messageInput = document.getElementById('message-input');
-    const text = messageInput.value.trim();
-
-    if (text === '') return;
-
+/**
+ * Envia uma mensagem de texto para o chat ativo.
+ * @param {string} chatId - O ID do chat.
+ * @param {string} text - O texto da mensagem.
+ */
+function sendTextMessage(chatId, text) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const message = {
         senderId: currentUser.id,
         text: text,
         timestamp: firebase.database.ServerValue.TIMESTAMP
     };
-
-    database.ref('chats/' + chatID).push(message);
-    messageInput.value = '';
+    database.ref('chats/' + chatId).push(message);
 }
 
-// Busca por usuários
-function searchUsers(query) {
-    const usersRef = database.ref('users');
-    const searchResultsDiv = document.getElementById('search-results');
-    searchResultsDiv.innerHTML = '';
+/**
+ * Inicia o processo de upload de foto, convertendo-a para Base64.
+ * @param {string} chatId - O ID do chat para onde enviar a foto.
+ */
+function handlePhotoUpload(chatId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
-        snapshot.forEach(childSnapshot => {
-            const user = childSnapshot.val();
-            const userDiv = document.createElement('div');
-            userDiv.innerHTML = `<p>${user.username}</p><small>${user.id}</small>`;
-            userDiv.onclick = () => startChatWith(user);
-            searchResultsDiv.appendChild(userDiv);
-        });
-    });
+        if (file.size > 500 * 1024) { // Limite de 500 KB
+            alert("A imagem é muito grande! O limite para este método é de 500 KB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file); // Converte para Base64
+        reader.onload = () => {
+            sendImageMessage(chatId, reader.result);
+        };
+    };
+    input.click();
+}
+
+/**
+ * Envia uma mensagem contendo uma imagem em Base64.
+ * @param {string} chatId - O ID do chat.
+ * @param {string} base64String - A imagem codificada em Base64.
+ */
+function sendImageMessage(chatId, base64String) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const message = {
+        senderId: currentUser.id,
+        imageUrl: base64String,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    database.ref('chats/' + chatId).push(message);
 }
