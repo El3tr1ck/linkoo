@@ -1,10 +1,5 @@
-// NO ARQUIVO: js/auth.js
-// VERSÃO CORRIGIDA E COMPLETA
+// NO ARQUIVO: js/auth.js (VERSÃO DE DEPURAÇÃO)
 
-/**
- * Gera um ID customizado no formato: 5 letras + - + 4 números.
- * @returns {string} O ID gerado.
- */
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
@@ -12,24 +7,23 @@ function generateCustomId() {
         randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
-    
-    // LINHA CORRIGIDA: Usa um hífen "-", que é um caractere válido.
     return `${randomChars}-${randomNumber}`; 
 }
 
-/**
- * Realiza o login do usuário, criando um registro no banco de dados.
- * @param {string} username - O nome de usuário escolhido.
- */
 async function loginUser(username) {
+    console.log("--- DEBUG: INICIANDO PROCESSO DE LOGIN ---");
+
     if (!username || username.trim().length < 3) {
+        console.log("--- DEBUG: Falha na validação do nome de usuário.");
         alert("O nome de usuário precisa ter pelo menos 3 caracteres.");
         return;
     }
+    console.log("1. Validação do nome OK. Nome:", username);
 
-    const userId = generateCustomId(); // Agora gera um ID válido, como "AdfCQ-1234"
+    const userId = generateCustomId();
+    console.log("2. ID gerado:", userId);
+    
     const userRef = database.ref('users/' + userId);
-
     const userData = {
         username: username,
         id: userId,
@@ -38,24 +32,26 @@ async function loginUser(username) {
     };
 
     try {
+        console.log("3. Tentando escrever no Firebase...");
         await userRef.set(userData);
-        
+        console.log("4. Escrita no Firebase BEM-SUCEDIDA!");
+
         sessionStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
         
+        console.log("5. Configurando presença...");
         setupPresence(userId);
+        
+        console.log("6. Mostrando interface do chat...");
         showChatInterface();
         loadUserChats(userId);
+        console.log("--- DEBUG: PROCESSO DE LOGIN CONCLUÍDO ---");
 
     } catch (error) {
-        console.error("Erro ao fazer login:", error);
-        alert("Não foi possível conectar. Verifique sua configuração do Firebase e a conexão com a internet.");
+        console.error("--- DEBUG: ERRO CRÍTICO NO LOGIN ---", error);
+        alert("FALHA AO CONECTAR: " + error.message);
     }
 }
 
-/**
- * Configura o sistema de presença para atualizar o status do usuário (online/offline).
- * @param {string} userId - O ID do usuário atual.
- */
 function setupPresence(userId) {
     const userStatusRef = database.ref('/users/' + userId);
     const presenceRef = database.ref('.info/connected');
