@@ -1,4 +1,5 @@
 // NO ARQUIVO: js/auth.js
+// VERSÃO CORRIGIDA E COMPLETA
 
 /**
  * Gera um ID customizado no formato: 5 letras + - + 4 números.
@@ -12,12 +13,9 @@ function generateCustomId() {
     }
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
     
-    // --- ESTA É A LINHA CORRIGIDA ---
-    // Trocamos o "#" por um "-" que é um caractere válido.
+    // LINHA CORRIGIDA: Usa um hífen "-", que é um caractere válido.
     return `${randomChars}-${randomNumber}`; 
 }
-
-// O resto do arquivo auth.js permanece exatamente o mesmo...
 
 /**
  * Realiza o login do usuário, criando um registro no banco de dados.
@@ -54,4 +52,21 @@ async function loginUser(username) {
     }
 }
 
-// ...o resto do arquivo continua igual.
+/**
+ * Configura o sistema de presença para atualizar o status do usuário (online/offline).
+ * @param {string} userId - O ID do usuário atual.
+ */
+function setupPresence(userId) {
+    const userStatusRef = database.ref('/users/' + userId);
+    const presenceRef = database.ref('.info/connected');
+
+    presenceRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            userStatusRef.update({ status: 'online' });
+            userStatusRef.onDisconnect().update({
+                status: 'offline',
+                last_seen: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+    });
+}
