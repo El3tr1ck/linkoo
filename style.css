@@ -45,12 +45,22 @@ body {
 .contacts-header { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; }
 #add-contact-button, #new-group-button { width: 100%; padding: 10px; font-size: 0.9rem; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #add-contact-button:hover, #new-group-button:hover { background-color: var(--hover-color); }
-#contact-list { flex-grow: 1; overflow-y: auto; }
+
+.scrollable-list { overflow-y: auto; flex-grow: 1; }
+#contact-list.scrollable-list { border: none; padding: 0; }
+
 .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; }
 .contact-item:hover { background-color: var(--hover-color); }
 .contact-item.active { background-color: var(--accent-color); }
 .status-dot { width: 24px; text-align: center; font-size: 0.9rem; color: var(--secondary-text-color); }
 .status-dot.online { color: #31a24c; }
+
+/* Rodapé do Painel de Contatos */
+.contacts-footer { padding: 10px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+#current-user-info { padding: 5px; font-size: 0.9em; color: var(--secondary-text-color); }
+#current-user-info strong { color: var(--primary-text-color); }
+.danger-button { width: 100%; margin-top: 10px; padding: 10px; background-color: transparent; border: 1px solid var(--danger-color); color: var(--danger-color); border-radius: 6px; cursor: pointer; transition: background-color 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.danger-button:hover { background-color: var(--danger-color); color: white; }
 
 /* PAINEL DE CHAT (DIREITA) */
 .chat-area-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; }
@@ -70,6 +80,7 @@ body {
 .message-bubble.sent { background-color: var(--sent-bubble-bg); color: white; align-self: flex-end; }
 .message-bubble.received { background-color: var(--received-bubble-bg); color: var(--primary-text-color); align-self: flex-start; }
 .message-bubble img { max-width: 100%; border-radius: 15px; margin-top: 5px; }
+.sender-name { display: block; font-weight: bold; font-size: 0.8em; color: var(--accent-color); margin-bottom: 4px; }
 
 /* Estilos para Markdown */
 .message-bubble strong, .message-bubble b { font-weight: bold; }
@@ -99,7 +110,7 @@ body {
 .close-button { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--secondary-text-color); }
 .overlay-content h3 { margin-top: 0; }
 .overlay-content input { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; margin-top: 10px; margin-bottom: 15px; background: var(--secondary-surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 6px; }
-.scrollable-list { overflow-y: auto; flex-grow: 1; border: 1px solid var(--border-color); border-radius: 6px; padding: 5px; }
+.scrollable-list { border: 1px solid var(--border-color); border-radius: 6px; padding: 5px; }
 .list-item { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; border-radius: 6px; }
 .list-item:hover { background-color: var(--hover-color); }
 .list-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent-color); }
