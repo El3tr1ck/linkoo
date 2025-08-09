@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <!-- TELA DE LOGIN (sem alterações) -->
+    <!-- TELA DE LOGIN -->
     <div id="login-container" class="container">
         <div class="login-box">
             <h1>Meu Chat</h1>
@@ -21,9 +21,11 @@
 
     <!-- INTERFACE PRINCIPAL DO CHAT -->
     <div id="chat-container" class="hidden">
+        
         <div id="contacts-panel">
             <div class="contacts-header">
-                <button id="add-contact-button"><i class="fa-solid fa-plus"></i> Novo Chat</button>
+                <button id="add-contact-button"><i class="fa-solid fa-user-plus"></i> Novo Chat</button>
+                <button id="new-group-button"><i class="fa-solid fa-users"></i> Novo Grupo</button>
             </div>
             <div id="contact-list"></div>
         </div>
@@ -32,23 +34,23 @@
             <div id="chat-welcome-screen" class="chat-area-content">
                 <h2>Selecione uma conversa para começar</h2>
             </div>
-            <div id="chat-conversation-screen" class="hidden">
+
+            <div id="chat-conversation-screen" class="hidden chat-area-content">
                 <div class="chat-header">
-                    <div>
+                    <div class="chat-header-info">
                         <h3 id="chat-header-username"></h3>
-                        <p id="chat-header-userid"></p>
+                        <p id="chat-header-details"></p>
                     </div>
                     <div class="chat-header-options">
                         <button id="chat-options-button" class="icon-button"><i class="fa-solid fa-ellipsis-vertical"></i></button>
                         <div id="chat-options-menu" class="context-menu hidden">
-                            <button id="block-user-button">Bloquear Usuário</button>
-                            <button id="delete-chat-button">Apagar Conversa</button>
+                            <!-- Opções serão inseridas aqui pelo JS -->
                         </div>
                     </div>
                 </div>
                 <div id="messages-area"></div>
                 <div class="message-input-area">
-                    <div id="file-options" class="hidden">
+                    <div id="file-options" class="context-menu hidden">
                        <button id="send-photo-button"><i class="fa-solid fa-image"></i> Enviar Foto</button>
                     </div>
                     <button id="file-menu-button" class="icon-button"><i class="fa-solid fa-plus"></i></button>
@@ -59,17 +61,12 @@
         </div>
     </div>
 
-    <!-- OVERLAY (sem alterações) -->
-    <div id="add-contact-overlay" class="overlay hidden">
-        <div class="overlay-content">
-            <button id="close-overlay-button" class="close-button"><i class="fa-solid fa-xmark"></i></button>
-            <h3>Iniciar uma nova conversa</h3>
-            <input type="text" id="search-user-input" placeholder="Buscar por nome de usuário...">
-            <div id="search-results"></div>
-        </div>
-    </div>
+    <!-- OVERLAYS (PAINÉIS) -->
+    <div id="add-contact-overlay" class="overlay hidden"></div>
+    <div id="new-group-overlay" class="overlay hidden"></div>
+    <div id="participants-overlay" class="overlay hidden"></div>
 
-    <!-- SCRIPTS (sem alterações) -->
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -79,5 +76,6 @@
     <script src="./js/ui.js"></script>
     <script src="./js/chat.js"></script>
     <script src="./js/main.js"></script>
+
 </body>
 </html>
