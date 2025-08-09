@@ -1,1 +1,235 @@
-(function(_0x3899b7,_0x26b267){const _0x3f3a75=_0x4e39,_0x343fa0=_0x3899b7();while(!![]){try{const _0x427d00=-parseInt(_0x3f3a75(0x88))/0x1+parseInt(_0x3f3a75(0x81))/0x2*(parseInt(_0x3f3a75(0x7e))/0x3)+-parseInt(_0x3f3a75(0x94))/0x4*(parseInt(_0x3f3a75(0xb5))/0x5)+-parseInt(_0x3f3a75(0x74))/0x6+parseInt(_0x3f3a75(0xbc))/0x7+-parseInt(_0x3f3a75(0xba))/0x8*(parseInt(_0x3f3a75(0xa5))/0x9)+parseInt(_0x3f3a75(0x77))/0xa*(parseInt(_0x3f3a75(0x87))/0xb);if(_0x427d00===_0x26b267)break;else _0x343fa0['push'](_0x343fa0['shift']());}catch(_0x3ebed7){_0x343fa0['push'](_0x343fa0['shift']());}}}(_0x36f0,0x4716e));let activeChatRef=null;function searchUsers(_0x23afb4){const _0x3348cd=_0x4e39,_0x43717c=JSON[_0x3348cd(0x8f)](sessionStorage['getItem']('currentUser')),_0x130378=database['ref']('users');_0x130378['orderByChild'](_0x3348cd(0x84))[_0x3348cd(0x7d)](_0x23afb4)[_0x3348cd(0x8b)](_0x23afb4+'')[_0x3348cd(0x9b)]('value',_0x1d7a51=>{const _0x56e311=_0x3348cd,_0x1bd7f2=[];_0x1d7a51[_0x56e311(0xb0)](_0x3c992e=>{const _0x5b5442=_0x56e311,_0x209357=_0x3c992e[_0x5b5442(0x90)]();_0x209357['id']!==_0x43717c['id']&&_0x1bd7f2[_0x5b5442(0xb7)](_0x209357);}),displaySearchResults(_0x1bd7f2);});}function startChatWith(_0x1fa0fb){const _0x43f91a=_0x4e39,_0x122848=JSON['parse'](sessionStorage[_0x43f91a(0xa8)](_0x43f91a(0x86))),_0x315ec9=[_0x122848['id'],_0x1fa0fb['id']][_0x43f91a(0x71)]()[_0x43f91a(0x82)]('_'),_0x1c8044={'type':_0x43f91a(0x8a),'withUsername':_0x1fa0fb['username'],'withUserId':_0x1fa0fb['id']},_0x751b54={'type':'direct','withUsername':_0x122848['username'],'withUserId':_0x122848['id']};database[_0x43f91a(0xb4)](_0x43f91a(0x89)+_0x122848['id']+'/'+_0x315ec9)['set'](_0x1c8044),database['ref'](_0x43f91a(0x89)+_0x1fa0fb['id']+'/'+_0x315ec9)[_0x43f91a(0xa4)](_0x751b54);}function loadUserChats(_0x1228f0){const _0x523126=_0x4e39,_0x3770c0=database[_0x523126(0xb4)]('user_chats/'+_0x1228f0);_0x3770c0['on']('child_added',_0x20a196=>{const _0x453d62=_0x523126,_0x4628b2={..._0x20a196[_0x453d62(0x90)](),'id':_0x20a196[_0x453d62(0x75)]};addUserToContactsList(_0x4628b2);}),_0x3770c0['on'](_0x523126(0x7a),_0x13a655=>{const _0x314b86=_0x523126;removeContactFromList(_0x13a655[_0x314b86(0x75)]);});}function listenForStatusUpdates(_0x4cfd0d){const _0x2d3b9c=_0x4e39,_0x405bed=database[_0x2d3b9c(0xb4)](_0x2d3b9c(0x6d)+_0x4cfd0d);_0x405bed['on'](_0x2d3b9c(0x7f),_0x28cd76=>{const _0xa95c4c=_0x2d3b9c,_0x6a0316=_0x28cd76['val']();_0x6a0316&&updateContactStatus(_0x4cfd0d,_0x6a0316[_0xa95c4c(0xa9)]);});}function loadChatMessages(_0x196053){const _0x2c13c8=_0x4e39;activeChatRef&&activeChatRef[_0x2c13c8(0xb9)]();const _0x54497c=document[_0x2c13c8(0x93)](_0x2c13c8(0x95));_0x54497c[_0x2c13c8(0xb3)]='';const _0x4fef2d=JSON[_0x2c13c8(0x8f)](sessionStorage[_0x2c13c8(0xa8)](_0x2c13c8(0x86))),_0x4d30f0=database[_0x2c13c8(0xb4)]('chats/'+_0x196053)[_0x2c13c8(0x83)]('timestamp')[_0x2c13c8(0x79)](0x64);activeChatRef=_0x4d30f0,activeChatRef['on']('child_added',_0xbe3181=>{const _0x484f82=_0xbe3181['val']();displayMessage(_0x484f82,_0x4fef2d['id']);});}async function sendTextMessage(_0x308a3a,_0x3202de,_0x441433){const _0x15fa0c=_0x4e39,_0x8a9f8a=JSON[_0x15fa0c(0x8f)](sessionStorage[_0x15fa0c(0xa8)](_0x15fa0c(0x86)));if(_0x441433===_0x15fa0c(0x8a)){const _0x5b5cf2=_0x308a3a[_0x15fa0c(0xa7)](_0x8a9f8a['id'],'')[_0x15fa0c(0xa7)]('_',''),_0xc9e37d=await checkIfBlocked(_0x5b5cf2);if(_0xc9e37d){alert(_0x15fa0c(0xa0));return;}}const _0x1fcb04={'senderId':_0x8a9f8a['id'],'senderName':_0x8a9f8a[_0x15fa0c(0x84)],'text':_0x3202de,'timestamp':firebase[_0x15fa0c(0x70)][_0x15fa0c(0xa2)][_0x15fa0c(0x99)]};database[_0x15fa0c(0xb4)](_0x15fa0c(0xbe)+_0x308a3a)[_0x15fa0c(0xb7)](_0x1fcb04);}function _0x4e39(_0x1ec910,_0xa3952a){const _0x36f0bd=_0x36f0();return _0x4e39=function(_0x4e39a7,_0x2d488d){_0x4e39a7=_0x4e39a7-0x6d;let _0x55ff48=_0x36f0bd[_0x4e39a7];return _0x55ff48;},_0x4e39(_0x1ec910,_0xa3952a);}function handlePhotoUpload(_0xec3273){const _0x235dc7=_0x4e39,_0x5c1561=document[_0x235dc7(0xaf)](_0x235dc7(0xb1));_0x5c1561[_0x235dc7(0x98)]='file',_0x5c1561[_0x235dc7(0x9f)]='image/jpeg,\x20image/png,\x20image/gif',_0x5c1561[_0x235dc7(0x6f)]=_0x32d956=>{const _0x40dd39=_0x235dc7,_0x442533=_0x32d956[_0x40dd39(0x6e)]['files'][0x0];if(!_0x442533)return;if(_0x442533[_0x40dd39(0xaa)]>0x1f4*0x400){alert('A\x20imagem\x20é\x20muito\x20grande!\x20O\x20limite\x20para\x20este\x20método\x20é\x20de\x20500\x20KB.');return;}const _0x40ba4e=new FileReader();_0x40ba4e[_0x40dd39(0x91)](_0x442533),_0x40ba4e[_0x40dd39(0x80)]=()=>{const _0x3e4098=_0x40dd39;sendImageMessage(_0xec3273,_0x40ba4e[_0x3e4098(0x85)]);};},_0x5c1561['click']();}function sendImageMessage(_0x11492c,_0x25e4c1){const _0x13e766=_0x4e39,_0x5df576=JSON[_0x13e766(0x8f)](sessionStorage['getItem'](_0x13e766(0x86))),_0x35ee28={'senderId':_0x5df576['id'],'imageUrl':_0x25e4c1,'timestamp':firebase[_0x13e766(0x70)]['ServerValue']['TIMESTAMP']};database[_0x13e766(0xb4)]('chats/'+_0x11492c)[_0x13e766(0xb7)](_0x35ee28);}function createGroup(_0x5a624,_0x1ed713){const _0x2d17fc=_0x4e39,_0x23a79e=JSON[_0x2d17fc(0x8f)](sessionStorage[_0x2d17fc(0xa8)]('currentUser')),_0x37f5cc=database[_0x2d17fc(0xb4)](_0x2d17fc(0xab))[_0x2d17fc(0xb7)]()[_0x2d17fc(0x75)],_0x2c2e2f={};_0x1ed713[_0x2d17fc(0xb0)](_0x3a67f7=>{_0x2c2e2f[_0x3a67f7]=!![];}),_0x2c2e2f[_0x23a79e['id']]=!![];const _0x161409={'name':_0x5a624,'creatorId':_0x23a79e['id'],'participants':_0x2c2e2f};database[_0x2d17fc(0xb4)](_0x2d17fc(0x9a)+_0x37f5cc)[_0x2d17fc(0xa4)](_0x161409);const _0x2dd0b2={'type':'group','groupName':_0x5a624};Object['keys'](_0x2c2e2f)[_0x2d17fc(0xb0)](_0x229b24=>{const _0x31bc95=_0x2d17fc;database['ref'](_0x31bc95(0x89)+_0x229b24+'/'+_0x37f5cc)[_0x31bc95(0xa4)](_0x2dd0b2);});}function leaveGroup(_0x56b4c1){const _0x26d1ba=_0x4e39,_0x2171ad=JSON[_0x26d1ba(0x8f)](sessionStorage[_0x26d1ba(0xa8)](_0x26d1ba(0x86)));database[_0x26d1ba(0xb4)](_0x26d1ba(0x9a)+_0x56b4c1+_0x26d1ba(0xad)+_0x2171ad['id'])[_0x26d1ba(0xac)](),database[_0x26d1ba(0xb4)](_0x26d1ba(0x89)+_0x2171ad['id']+'/'+_0x56b4c1)[_0x26d1ba(0xac)]();}function blockUser(_0x512bd9){const _0x1381a3=_0x4e39,_0x20ba95=JSON[_0x1381a3(0x8f)](sessionStorage['getItem'](_0x1381a3(0x86)));database[_0x1381a3(0xb4)](_0x1381a3(0x92)+_0x20ba95['id']+'/'+_0x512bd9)[_0x1381a3(0xa4)](!![]);}function _0x36f0(){const _0x4b5394=['506IYGtmE','127561jWucKI','user_chats/','direct','endAt','transaction','/ratings','message','parse','val','readAsDataURL','blocked_users/','getElementById','28fgPGwB','messages-area','email','user','type','TIMESTAMP','groups/','once','auth','error','/bio','accept','Você\x20não\x20pode\x20enviar\x20mensagens\x20para\x20este\x20usuário,\x20pois\x20você\x20o\x20bloqueou.','sanitize','ServerValue','GoogleAuthProvider','set','5877KIhUMX','signInWithPopup','replace','getItem','status','size','groups','remove','/participants/','/ratedBy/','createElement','forEach','input','count','innerHTML','ref','355235Yqmhxh','participants','push','exists','off','6616JLspFu','/links','1390312pwaAdN','/googleEmail','chats/','users/','target','onchange','database','sort','sum','Conta\x20Google\x20vinculada\x20com\x20sucesso!','1563906OLSHqR','key','Não\x20foi\x20possível\x20vincular\x20a\x20conta\x20Google.\x20Erro:\x20','267220BVKrRZ','reload','limitToLast','child_removed','clear','Erro\x20ao\x20vincular\x20conta\x20Google:','startAt','866778yjTnDc','value','onload','2SOWXbV','join','orderByChild','username','result','currentUser'];_0x36f0=function(){return _0x4b5394;};return _0x36f0();}function unblockUser(_0x508c73){const _0x3f7fdc=_0x4e39,_0x5f4d1b=JSON[_0x3f7fdc(0x8f)](sessionStorage[_0x3f7fdc(0xa8)](_0x3f7fdc(0x86)));database[_0x3f7fdc(0xb4)](_0x3f7fdc(0x92)+_0x5f4d1b['id']+'/'+_0x508c73)[_0x3f7fdc(0xac)]();}async function checkIfBlocked(_0x5ad6ca){const _0x4d6794=_0x4e39,_0x3218ba=JSON[_0x4d6794(0x8f)](sessionStorage[_0x4d6794(0xa8)](_0x4d6794(0x86))),_0x1bc88c=await database[_0x4d6794(0xb4)]('blocked_users/'+_0x3218ba['id']+'/'+_0x5ad6ca)['once'](_0x4d6794(0x7f));return _0x1bc88c[_0x4d6794(0xb8)]();}function deleteConversation(_0xcd62bb){const _0x586643=_0x4e39,_0x24f459=JSON[_0x586643(0x8f)](sessionStorage[_0x586643(0xa8)](_0x586643(0x86)));database[_0x586643(0xb4)](_0x586643(0x89)+_0x24f459['id']+'/'+_0xcd62bb)['remove']();}async function deleteCurrentUserAccount(){const _0x36851b=_0x4e39,_0x3d6563=JSON[_0x36851b(0x8f)](sessionStorage['getItem'](_0x36851b(0x86)));if(!_0x3d6563)return;const _0x395476=await database[_0x36851b(0xb4)](_0x36851b(0xab))[_0x36851b(0x9b)](_0x36851b(0x7f)),_0x54935c=_0x395476[_0x36851b(0x90)]();if(_0x54935c)for(const _0x496832 in _0x54935c){_0x54935c[_0x496832][_0x36851b(0xb6)]&&_0x54935c[_0x496832][_0x36851b(0xb6)][_0x3d6563['id']]&&database[_0x36851b(0xb4)](_0x36851b(0x9a)+_0x496832+_0x36851b(0xad)+_0x3d6563['id'])[_0x36851b(0xac)]();}await database[_0x36851b(0xb4)]('users/'+_0x3d6563['id'])[_0x36851b(0xac)](),await database[_0x36851b(0xb4)]('user_chats/'+_0x3d6563['id'])[_0x36851b(0xac)](),await database[_0x36851b(0xb4)](_0x36851b(0x92)+_0x3d6563['id'])[_0x36851b(0xac)](),sessionStorage[_0x36851b(0x7b)](),window['location'][_0x36851b(0x78)]();}async function linkGoogleAccount(){const _0x192083=_0x4e39,_0x40e161=new firebase[(_0x192083(0x9c))][(_0x192083(0xa3))]();try{const _0x41877a=await firebase[_0x192083(0x9c)]()[_0x192083(0xa6)](_0x40e161),_0x43578e=_0x41877a[_0x192083(0x97)][_0x192083(0x96)],_0x5ef227=JSON[_0x192083(0x8f)](sessionStorage[_0x192083(0xa8)](_0x192083(0x86)));_0x43578e&&_0x5ef227&&(await database[_0x192083(0xb4)](_0x192083(0x6d)+_0x5ef227['id']+_0x192083(0xbd))[_0x192083(0xa4)](_0x43578e),alert(_0x192083(0x73)),showIdentityPanel(_0x5ef227['id']));}catch(_0x4ca3a2){console[_0x192083(0x9d)](_0x192083(0x7c),_0x4ca3a2),alert(_0x192083(0x76)+_0x4ca3a2[_0x192083(0x8e)]);}}function updateUserBio(_0x3def75){const _0x4bf4a5=_0x4e39,_0x50ab2c=JSON[_0x4bf4a5(0x8f)](sessionStorage[_0x4bf4a5(0xa8)](_0x4bf4a5(0x86)));database[_0x4bf4a5(0xb4)](_0x4bf4a5(0x6d)+_0x50ab2c['id']+_0x4bf4a5(0x9e))[_0x4bf4a5(0xa4)](_0x3def75);}function addUserLink(_0x275025){const _0x5de2f1=_0x4e39,_0xead505=JSON['parse'](sessionStorage[_0x5de2f1(0xa8)]('currentUser'));database['ref'](_0x5de2f1(0x6d)+_0xead505['id']+_0x5de2f1(0xbb))['push']({'url':_0x275025});}function removeUserLink(_0x3f0bb2){const _0x4211c2=_0x4e39,_0x42414a=JSON['parse'](sessionStorage[_0x4211c2(0xa8)](_0x4211c2(0x86)));database[_0x4211c2(0xb4)](_0x4211c2(0x6d)+_0x42414a['id']+'/links/'+_0x3f0bb2)[_0x4211c2(0xac)]();}function submitUserRating(_0x1a661f,_0x37b6db){const _0x133f9d=_0x4e39,_0x5a6de6=JSON['parse'](sessionStorage['getItem'](_0x133f9d(0x86))),_0x19704e=database[_0x133f9d(0xb4)]('users/'+_0x1a661f+_0x133f9d(0x8d)),_0x516864=database[_0x133f9d(0xb4)]('users/'+_0x1a661f+_0x133f9d(0xae)+_0x5a6de6['id']);_0x19704e[_0x133f9d(0x8c)](_0x4e7345=>{const _0x57fb4c=_0x133f9d;return _0x4e7345===null?{'sum':_0x37b6db,'count':0x1}:{'sum':(_0x4e7345[_0x57fb4c(0x72)]||0x0)+_0x37b6db,'count':(_0x4e7345[_0x57fb4c(0xb2)]||0x0)+0x1};}),_0x516864[_0x133f9d(0xa4)](!![]);}function convertMarkdownToHtml(_0x432b47){const _0x5a593b=_0x4e39;if(!_0x432b47)return'';const _0x123110=marked[_0x5a593b(0x8f)](_0x432b47),_0x6aa0f1=DOMPurify[_0x5a593b(0xa1)](_0x123110);return _0x6aa0f1;}
+let activeChatRef = null;
+
+function searchUsers(query) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const usersRef = database.ref('users');
+    
+    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
+        const users = [];
+        snapshot.forEach(childSnapshot => {
+            const user = childSnapshot.val();
+            if (user.id !== currentUser.id) {
+                users.push(user);
+            }
+        });
+        displaySearchResults(users);
+    });
+}
+
+function startChatWith(otherUser) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const chatId = [currentUser.id, otherUser.id].sort().join('_');
+    
+    const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id };
+    const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id };
+
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
+    database.ref(`user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
+}
+
+function loadUserChats(userId) {
+    const userChatsRef = database.ref(`user_chats/${userId}`);
+    userChatsRef.on('child_added', snapshot => {
+        const chatInfo = { ...snapshot.val(), id: snapshot.key };
+        addUserToContactsList(chatInfo);
+    });
+    userChatsRef.on('child_removed', snapshot => {
+        removeContactFromList(snapshot.key);
+    });
+}
+
+function listenForStatusUpdates(userId) {
+    const userStatusRef = database.ref(`users/${userId}`);
+    userStatusRef.on('value', snapshot => {
+        const userData = snapshot.val();
+        if (userData) {
+            updateContactStatus(userId, userData.status);
+        }
+    });
+}
+
+function loadChatMessages(chatId) {
+    if (activeChatRef) {
+        activeChatRef.off();
+    }
+
+    const messagesArea = document.getElementById('messages-area');
+    messagesArea.innerHTML = '';
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
+    
+    activeChatRef = messagesRef;
+
+    activeChatRef.on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        displayMessage(message, currentUser.id);
+    });
+}
+
+async function sendTextMessage(chatId, text, chatType) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    if (chatType === 'direct') {
+        const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
+        const isBlocked = await checkIfBlocked(otherUserId);
+        if (isBlocked) {
+            alert("Você não pode enviar mensagens para este usuário, pois você o bloqueou.");
+            return;
+        }
+    }
+    
+    const message = { 
+        senderId: currentUser.id, 
+        senderName: currentUser.username, 
+        text: text, 
+        timestamp: firebase.database.ServerValue.TIMESTAMP 
+    };
+    database.ref('chats/' + chatId).push(message);
+}
+
+function handlePhotoUpload(chatId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500 * 1024) {
+            alert("A imagem é muito grande! O limite para este método é de 500 KB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            sendImageMessage(chatId, reader.result);
+        };
+    };
+    input.click();
+}
+
+function sendImageMessage(chatId, base64String) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const message = {
+        senderId: currentUser.id,
+        imageUrl: base64String,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    database.ref('chats/' + chatId).push(message);
+}
+
+function createGroup(groupName, participantIds) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const groupId = database.ref('groups').push().key;
+
+    const participants = {};
+    participantIds.forEach(id => { participants[id] = true; });
+    participants[currentUser.id] = true;
+
+    const groupData = {
+        name: groupName,
+        creatorId: currentUser.id,
+        participants: participants
+    };
+
+    database.ref('groups/' + groupId).set(groupData);
+
+    const chatData = { type: 'group', groupName: groupName };
+    Object.keys(participants).forEach(userId => {
+        database.ref(`user_chats/${userId}/${groupId}`).set(chatData);
+    });
+}
+
+function leaveGroup(groupId) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
+    database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
+}
+
+function blockUser(otherUserId) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
+}
+
+function unblockUser(otherUserId) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).remove();
+}
+
+async function checkIfBlocked(otherUserId) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const snapshot = await database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).once('value');
+    return snapshot.exists();
+}
+
+function deleteConversation(chatId) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
+}
+
+async function deleteCurrentUserAccount() {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
+    const groupsSnapshot = await database.ref('groups').once('value');
+    const groups = groupsSnapshot.val();
+    if (groups) {
+        for (const groupId in groups) {
+            if (groups[groupId].participants && groups[groupId].participants[currentUser.id]) {
+                database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
+            }
+        }
+    }
+
+    await database.ref('users/' + currentUser.id).remove();
+    await database.ref('user_chats/' + currentUser.id).remove();
+    await database.ref('blocked_users/' + currentUser.id).remove();
+
+    // CORREÇÃO: Limpando localStorage
+    localStorage.clear();
+    window.location.reload();
+}
+
+function rateUser(targetUserId, score) {
+    // CORREÇÃO: Usando localStorage para persistir o login
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    if (!currentUser.googleUID) {
+        alert("Você precisa vincular uma conta do Google para avaliar outros usuários.");
+        return Promise.reject(new Error("Usuário não autenticado com Google."));
+    }
+
+    const targetUserRef = database.ref(`users/${targetUserId}`);
+
+    return targetUserRef.transaction(userData => {
+        if (userData) {
+            if (!userData.ratings) userData.ratings = {};
+            userData.ratings[currentUser.googleUID] = score;
+
+            const allScores = Object.values(userData.ratings);
+            userData.ratingCount = allScores.length;
+            const sumOfScores = allScores.reduce((sum, current) => sum + current, 0);
+            userData.avgRating = sumOfScores / userData.ratingCount;
+        }
+        return userData;
+    });
+}
+
+function convertMarkdownToHtml(text) {
+    if (!text) return '';
+    const rawHtml = marked.parse(text);
+    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+    return sanitizedHtml;
+}
