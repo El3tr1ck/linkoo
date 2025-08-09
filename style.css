@@ -1,21 +1,76 @@
-/* Estilos básicos para layout */
-body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
+/* GERAL E LAYOUT */
+:root {
+    --primary-color: #0084ff;
+    --light-gray: #f0f2f5;
+    --border-color: #ddd;
+    --text-color: #050505;
+    --sent-bubble-bg: #0084ff;
+    --received-bubble-bg: #e4e6eb;
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: var(--light-gray);
+    overflow: hidden;
+}
 .hidden { display: none !important; }
-.container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-#chat-container main { display: flex; height: 80vh; border-top: 1px solid #ccc; }
-#contacts-panel { width: 30%; border-right: 1px solid #ddd; overflow-y: auto; }
-#chat-panel { width: 70%; display: flex; flex-direction: column; }
-#messages-area { flex-grow: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column-reverse; } /* Inverte a ordem para o scroll começar de baixo */
-#message-input-area { display: flex; padding: 10px; border-top: 1px solid #ddd; }
-#message-input { flex-grow: 1; border-radius: 18px; padding: 10px; border: 1px solid #ccc; resize: none; }
-#send-message-button { margin-left: 10px; }
 
-/* Bolha de status */
-.status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-.status-dot.online { background-color: #4CAF50; /* Verde */ }
-.status-dot.offline { background-color: #f44336; /* Vermelho */ }
+/* TELA DE LOGIN */
+#login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+.login-box {
+    padding: 40px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+#username-input { font-size: 1rem; padding: 10px; margin: 10px 0; width: 250px; border: 1px solid var(--border-color); border-radius: 6px; }
+#login-button { font-size: 1rem; padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; }
 
-/* Balões de mensagem */
-.message-bubble { max-width: 70%; padding: 10px 15px; border-radius: 18px; margin-bottom: 5px; word-wrap: break-word; }
-.sent { background-color: #0084ff; color: white; align-self: flex-end; }
-.received { background-color: #e4e6eb; color: #050505; align-self: flex-start; }
+/* ESTRUTURA PRINCIPAL DO CHAT */
+#chat-container { display: flex; height: 100vh; }
+#contacts-panel { width: 35%; max-width: 360px; background: #fff; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+#chat-panel { width: 65%; display: flex; flex-direction: column; }
+
+/* PAINEL DE CONTATOS (ESQUERDA) */
+.contacts-header { padding: 10px; border-bottom: 1px solid var(--border-color); }
+#add-contact-button { width: 100%; padding: 10px; font-size: 1rem; background-color: #e7f3ff; color: var(--primary-color); border: none; border-radius: 6px; cursor: pointer; }
+#contact-list { flex-grow: 1; overflow-y: auto; }
+.contact-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid var(--border-color); }
+.contact-item:hover { background-color: var(--light-gray); }
+.contact-item.active { background-color: #e7f3ff; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; }
+.status-dot.online { background-color: #31a24c; }
+.status-dot.offline { background-color: #ccc; }
+
+/* PAINEL DE CHAT (DIREITA) */
+.chat-area-content { flex-grow: 1; display: flex; flex-direction: column; }
+#chat-welcome-screen { justify-content: center; align-items: center; text-align: center; color: #65676b; }
+.chat-header { padding: 10px 20px; border-bottom: 1px solid var(--border-color); }
+#chat-header-userid { font-size: 0.8rem; color: #65676b; margin-top: -15px; }
+#messages-area { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+.message-bubble { max-width: 65%; width: fit-content; padding: 8px 12px; border-radius: 18px; margin-bottom: 10px; word-wrap: break-word; line-height: 1.4; }
+.message-bubble.sent { background-color: var(--sent-bubble-bg); color: white; align-self: flex-end; }
+.message-bubble.received { background-color: var(--received-bubble-bg); color: var(--text-color); align-self: flex-start; }
+.message-bubble img { max-width: 100%; border-radius: 15px; margin-top: 5px; }
+.message-input-area { display: flex; align-items: center; padding: 10px; background: #fff; }
+#message-input { flex-grow: 1; border: none; background: var(--light-gray); border-radius: 18px; padding: 10px 15px; font-size: 1rem; resize: none; max-height: 100px; }
+#message-input:focus { outline: none; }
+.input-action-button { background: none; border: none; font-size: 1.5rem; color: var(--primary-color); cursor: pointer; padding: 5px 10px; }
+#file-menu-button { position: relative; }
+#file-options { position: absolute; bottom: 50px; left: 10px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+#file-options button { display: block; background: none; border: none; padding: 12px; cursor: pointer; text-align: left; width: 100%; }
+
+/* OVERLAY DE BUSCA */
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+.overlay-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; position: relative; }
+.close-button { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+#search-user-input { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; margin-top: 10px; }
+#search-results { margin-top: 10px; max-height: 200px; overflow-y: auto; }
+.search-result-item { padding: 10px; cursor: pointer; border-radius: 6px; }
+.search-result-item:hover { background-color: var(--light-gray); }
