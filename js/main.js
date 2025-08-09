@@ -84,7 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const identityButton = document.getElementById('identity-button');
 
     // --- Lógica de Inicialização ---
-    const savedUser = sessionStorage.getItem('currentUser');
+    // CORREÇÃO: Usando localStorage para verificar se o usuário já estava logado
+    const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
         setupPresence(userData.id);
@@ -109,7 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     identityButton.addEventListener('click', () => {
-        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        // CORREÇÃO: Usando localStorage para pegar os dados do usuário atual
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
         showIdentityPanel(currentUser.id);
     });
 
@@ -181,8 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (url) {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
-                const me = JSON.parse(sessionStorage.getItem('currentUser'));
-                showIdentityPanel(me.id); // Recarrega o painel
+                // CORREÇÃO: Usando localStorage para recarregar o painel
+                const me = JSON.parse(localStorage.getItem('currentUser'));
+                showIdentityPanel(me.id);
             }
         }
         // Submeter avaliação
