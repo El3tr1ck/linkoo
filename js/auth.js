@@ -28,8 +28,7 @@ async function loginUser(username) {
     try {
         await userRef.set(userData);
         
-        // CORREÇÃO: Usando localStorage para manter o login após fechar o navegador
-       localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
+        localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
         
         setupPresence(userId);
         showChatInterface();
