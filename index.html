@@ -3,76 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat com Firebase</title>
+    <title>Meu Chat</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Tela de Login -->
+    <!-- TELA DE LOGIN -->
     <div id="login-container" class="container">
-        <h1>Entrar no Chat</h1>
-        <input type="text" id="username-input" placeholder="Digite seu nome de usuário">
-        <button id="login-button">Entrar</button>
-    </div>
-
-    <!-- Interface Principal do Chat (escondida inicialmente) -->
-    <div id="chat-container" class="container hidden">
-        <header>
-            <div class="header-left">
-                <button id="add-profile-button">Adicionar Contato</button>
-            </div>
-            <div id="chat-header-info">
-                <h2>Selecione uma conversa</h2>
-            </div>
-        </header>
-        <main>
-            <div id="contacts-panel">
-                <!-- Lista de contatos/chats aparecerá aqui -->
-            </div>
-            <div id="chat-panel">
-                <div id="messages-area">
-                    <!-- Mensagens do chat ativo aparecerão aqui -->
-                </div>
-                <div id="message-input-area">
-                     <button id="file-menu-button">+</button>
-                     <div id="file-options" class="hidden">
-                        <button id="send-photo-button">Enviar Foto</button>
-                        <button id="send-file-button">Enviar Arquivo</button>
-                     </div>
-                    <textarea id="message-input" placeholder="Digite sua mensagem..."></textarea>
-                    <button id="send-message-button">Enviar</button>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Painel para Adicionar Contato (escondido inicialmente) -->
-    <div id="add-profile-overlay" class="overlay hidden">
-        <div class="overlay-content">
-            <h3>Adicionar Contato</h3>
-            <input type="text" id="search-user-input" placeholder="Digite o nome ou ID do usuário">
-            <div id="search-results">
-                <!-- Resultados da busca aparecerão aqui -->
-            </div>
-            <button id="close-overlay-button">Fechar</button>
+        <div class="login-box">
+            <h1>Bem-vindo ao Chat</h1>
+            <p>Escolha um nome de usuário para começar.</p>
+            <input type="text" id="username-input" placeholder="Seu nome de usuário">
+            <button id="login-button">Entrar</button>
         </div>
     </div>
-    
-    <!-- Scripts -->
-    <!-- Biblioteca para Markdown -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <!-- Scripts do Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script> <!-- Opcional, mas bom para futuras expansões -->
+    <!-- INTERFACE PRINCIPAL DO CHAT (escondida por padrão) -->
+    <div id="chat-container" class="hidden">
+        
+        <!-- PAINEL ESQUERDO: CONTATOS -->
+        <div id="contacts-panel">
+            <div class="contacts-header">
+                <button id="add-contact-button">➕ Novo Chat</button>
+            </div>
+            <div id="contact-list">
+                <!-- A lista de conversas será inserida aqui pelo JS -->
+            </div>
+        </div>
+
+        <!-- PAINEL DIREITO: CONVERSA -->
+        <div id="chat-panel">
+            <div id="chat-welcome-screen" class="chat-area-content">
+                <h2>Selecione uma conversa para começar</h2>
+                <p>Use o botão "Novo Chat" para encontrar usuários e iniciar uma conversa.</p>
+            </div>
+
+            <div id="chat-conversation-screen" class="hidden chat-area-content">
+                <div class="chat-header">
+                    <h3 id="chat-header-username"></h3>
+                    <p id="chat-header-userid"></p>
+                </div>
+                <div id="messages-area">
+                    <!-- As mensagens serão inseridas aqui pelo JS -->
+                </div>
+                <div class="message-input-area">
+                    <button id="file-menu-button" class="input-action-button">+</button>
+                    <div id="file-options" class="hidden">
+                       <button id="send-photo-button">📷 Foto</button>
+                    </div>
+                    <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+                    <button id="send-message-button" class="input-action-button">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAINEL (OVERLAY) PARA ADICIONAR CONTATO -->
+    <div id="add-contact-overlay" class="overlay hidden">
+        <div class="overlay-content">
+            <button id="close-overlay-button" class="close-button">X</button>
+            <h3>Iniciar uma nova conversa</h3>
+            <input type="text" id="search-user-input" placeholder="Buscar por nome de usuário...">
+            <div id="search-results">
+                <!-- Os resultados da busca aparecerão aqui -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- Nossos Scripts -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/main.js"></script>
+    <script src="./js/firebase-config.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/chat.js"></script>
+    <script src="./js/main.js"></script>
 
 </body>
 </html>
