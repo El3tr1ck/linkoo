@@ -1,7 +1,14 @@
-// NO ARQUIVO: js/ui.js (SUBSTITUIR TUDO)
+// NO ARQUIVO: js/ui.js (VERSÃO COMPLETA E CORRIGIDA)
 
-function showLoginScreen() { /* ... */ }
-function showChatInterface() { /* ... */ }
+function showLoginScreen() {
+    document.getElementById('login-container').classList.remove('hidden');
+    document.getElementById('chat-container').classList.add('hidden');
+}
+
+function showChatInterface() {
+    document.getElementById('login-container').classList.add('hidden');
+    document.getElementById('chat-container').classList.remove('hidden');
+}
 
 function toggleOverlay(overlayId, show, contentGenerator) {
     const overlay = document.getElementById(overlayId);
@@ -14,10 +21,6 @@ function toggleOverlay(overlayId, show, contentGenerator) {
         overlay.classList.add('hidden');
     }
 }
-
-// --- FUNÇÕES DE EXIBIÇÃO DE LISTAS E MENSAGENS ---
-
-function displaySearchResults(users) { /* ... (sem alterações, mas agora é chamado por um painel genérico) ... */ }
 
 function addUserToContactsList(chatInfo) {
     const contactList = document.getElementById('contact-list');
@@ -32,10 +35,10 @@ function addUserToContactsList(chatInfo) {
     if (chatInfo.type === 'group') {
         html = `
             <div class="status-dot"><i class="fa-solid fa-users"></i></div>
-            <div><strong>${chatInfo.groupName}</strong></div>`;
+            <div><strong>${convertMarkdownToHtml(chatInfo.groupName)}</strong></div>`;
     } else {
         html = `
-            <div id="status-${chatInfo.withUserId}" class="status-dot offline"></div>
+            <div id="status-${chatInfo.withUserId}" class="status-dot offline"><i class="fa-solid fa-circle"></i></div>
             <div><strong>${chatInfo.withUsername}</strong></div>`;
         listenForStatusUpdates(chatInfo.withUserId);
     }
@@ -50,8 +53,41 @@ function removeContactFromList(chatId) {
     }
 }
 
-function updateContactStatus(userId, status) { /* ... */ }
-function displayMessage(message, currentUserId) { /* ... (sem alterações, o bug do scroll foi corrigido no CSS) ... */ }
+function updateContactStatus(userId, status) {
+    const statusDot = document.getElementById(`status-${userId}`);
+    if (statusDot) {
+        statusDot.innerHTML = `<i class="fa-solid fa-circle"></i>`;
+        if (status === 'online') {
+            statusDot.classList.add('online');
+        } else {
+            statusDot.classList.remove('online');
+        }
+    }
+}
+
+function displayMessage(message, currentUserId) {
+    const messagesArea = document.getElementById('messages-area');
+    const bubble = document.createElement('div');
+    bubble.classList.add('message-bubble');
+    bubble.classList.add(message.senderId === currentUserId ? 'sent' : 'received');
+
+    let content = '';
+    if (message.text) {
+        content = convertMarkdownToHtml(message.text);
+    } else if (message.imageUrl) {
+        content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
+    }
+    
+    // Adiciona o nome do remetente para mensagens de grupo recebidas
+    if (activeChat.type === 'group' && message.senderId !== currentUserId) {
+        bubble.innerHTML = `<strong class="sender-name">${message.senderName || ''}</strong>${content}`;
+    } else {
+        bubble.innerHTML = content;
+    }
+    
+    messagesArea.appendChild(bubble);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+}
 
 // --- NOVOS PAINÉIS (OVERLAYS) ---
 
