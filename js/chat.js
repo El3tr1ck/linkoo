@@ -1,4 +1,4 @@
-let activeChatRef = null; // Variável para guardar a REFERÊNCIA do chat ativo, não o listener
+let activeChatRef = null;
 
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
 
@@ -50,12 +50,7 @@ function listenForStatusUpdates(userId) {
     });
 }
 
-/**
- * Carrega mensagens de um chat e DESLIGA o listener do chat anterior.
- * @param {string} chatId 
- */
 function loadChatMessages(chatId) {
-    // CORREÇÃO CRÍTICA: Desliga o listener ANTERIOR para parar de ouvir mensagens de outra conversa
     if (activeChatRef) {
         activeChatRef.off();
     }
@@ -65,20 +60,18 @@ function loadChatMessages(chatId) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
     const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
-    
-    // Guarda a nova referência para poder desligá-la depois
     activeChatRef = messagesRef;
 
-    // Liga o novo listener
     activeChatRef.on('child_added', (snapshot) => {
         const message = snapshot.val();
         displayMessage(message, currentUser.id);
     });
 }
 
+// --- FUNÇÕES DE ENVIO DE MENSAGEM ---
+
 async function sendTextMessage(chatId, text, chatType) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
-
     if (chatType === 'direct') {
         const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
         const isBlocked = await checkIfBlocked(otherUserId);
@@ -87,7 +80,6 @@ async function sendTextMessage(chatId, text, chatType) {
             return;
         }
     }
-    
     const message = { 
         senderId: currentUser.id, 
         senderName: currentUser.username, 
@@ -127,6 +119,8 @@ function sendImageMessage(chatId, base64String) {
     database.ref('chats/' + chatId).push(message);
 }
 
+// --- FUNÇÕES DE GRUPO ---
+
 function createGroup(groupName, participantIds) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const groupId = database.ref('groups').push().key;
@@ -154,6 +148,8 @@ function leaveGroup(groupId) {
     database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
     database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
 }
+
+// --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
 
 function blockUser(otherUserId) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -198,7 +194,59 @@ async function deleteCurrentUserAccount() {
     window.location.reload();
 }
 
+// --- NOVAS FUNÇÕES DE IDENTIDADE ---
+
+async function linkGoogleAccount() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        const result = await firebase.auth().signInWithPopup(provider);
+        const email = result.user.email;
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        if (email && currentUser) {
+            await database.ref(`users/${currentUser.id}/googleEmail`).set(email);
+            alert("Conta Google vinculada com sucesso!");
+            showIdentityPanel(currentUser.id); // Recarrega o painel
+        }
+    } catch (error) {
+        console.error("Erro ao vincular conta Google:", error);
+        alert("Não foi possível vincular a conta Google. Erro: " + error.message);
+    }
+}
+
+function updateUserBio(bio) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/bio`).set(bio);
+}
+
+function addUserLink(url) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/links`).push({ url: url });
+}
+
+function removeUserLink(linkId) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
+}
+
+function submitUserRating(ratedUserId, rating) {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
+    const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
+
+    // Usa uma transação para garantir que a soma e a contagem sejam atualizadas atomicamente
+    ratingRef.transaction((currentRatings) => {
+        if (currentRatings === null) {
+            return { sum: rating, count: 1 };
+        } else {
+            return { sum: (currentRatings.sum || 0) + rating, count: (currentRatings.count || 0) + 1 };
+        }
+    });
+
+    ratedByRef.set(true); // Marca que o usuário atual já avaliou
+}
+
 function convertMarkdownToHtml(text) {
+    if (!text) return '';
     const rawHtml = marked.parse(text);
     const sanitizedHtml = DOMPurify.sanitize(rawHtml);
     return sanitizedHtml;
