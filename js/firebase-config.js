@@ -1,16 +1,1 @@
-// ATENÇÃO: Substitua os valores abaixo pelos dados do seu projeto no Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyBPyiawIU43G4QrAqm6YE_-IjK70RQ3b9I",
-  authDomain: "chat-with-me-cwm.firebaseapp.com",
-  databaseURL: "https://chat-with-me-cwm-default-rtdb.firebaseio.com", // Verifique se esta é a URL correta do Realtime Database
-  projectId: "chat-with-me-cwm",
-  storageBucket: "chat-with-me-cwm.appspot.com",
-  messagingSenderId: "1021445958219",
-  appId: "1:1021445958219:web:acdf0602c5357f775d7bce"
-};
-
-// Inicializa o Firebase
-firebase.initializeApp(firebaseConfig);
-
-// Cria referências para os serviços que vamos usar
-const database = firebase.database();
+const _0x2e9aae=_0x15f6;(function(_0x4d96cb,_0x29e914){const _0x49a681=_0x15f6,_0x3ed109=_0x4d96cb();while(!![]){try{const _0xa6bc9d=-parseInt(_0x49a681(0x8e))/0x1*(-parseInt(_0x49a681(0x8f))/0x2)+parseInt(_0x49a681(0x90))/0x3*(-parseInt(_0x49a681(0x93))/0x4)+-parseInt(_0x49a681(0x96))/0x5+-parseInt(_0x49a681(0x95))/0x6+parseInt(_0x49a681(0x94))/0x7*(-parseInt(_0x49a681(0x8c))/0x8)+parseInt(_0x49a681(0x8d))/0x9+parseInt(_0x49a681(0x9a))/0xa*(parseInt(_0x49a681(0x98))/0xb);if(_0xa6bc9d===_0x29e914)break;else _0x3ed109['push'](_0x3ed109['shift']());}catch(_0x48ad47){_0x3ed109['push'](_0x3ed109['shift']());}}}(_0x21e1,0x69d00));const firebaseConfig={'apiKey':_0x2e9aae(0x8a),'authDomain':_0x2e9aae(0x87),'databaseURL':_0x2e9aae(0x91),'projectId':_0x2e9aae(0x88),'storageBucket':_0x2e9aae(0x99),'messagingSenderId':_0x2e9aae(0x92),'appId':_0x2e9aae(0x97)};function _0x21e1(){const _0x1ca6bb=['1226570raMVyM','chat-with-me-cwm.firebaseapp.com','chat-with-me-cwm','initializeApp','AIzaSyBPyiawIU43G4QrAqm6YE_-IjK70RQ3b9I','database','1245168DHloZM','7535835kApRNx','122ixjYpQ','1546acmBWg','13089acYDni','https://chat-with-me-cwm-default-rtdb.firebaseio.com','1021445958219','264ewibxK','7TvJihO','3102144KWnNlx','2594205QsoEpw','1:1021445958219:web:acdf0602c5357f775d7bce','88YpAqUz','chat-with-me-cwm.appspot.com'];_0x21e1=function(){return _0x1ca6bb;};return _0x21e1();}function _0x15f6(_0x28dfb9,_0xa5e5d9){const _0x21e1a5=_0x21e1();return _0x15f6=function(_0x15f6c0,_0x19457c){_0x15f6c0=_0x15f6c0-0x87;let _0x902dcb=_0x21e1a5[_0x15f6c0];return _0x902dcb;},_0x15f6(_0x28dfb9,_0xa5e5d9);}firebase[_0x2e9aae(0x89)](firebaseConfig);const database=firebase[_0x2e9aae(0x8b)]();
