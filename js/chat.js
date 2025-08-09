@@ -1,4 +1,6 @@
-let currentChatListener = null;
+let activeChatRef = null; // Variável para guardar a REFERÊNCIA do chat ativo, não o listener
+
+// --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
 
 function searchUsers(query) {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -48,17 +50,27 @@ function listenForStatusUpdates(userId) {
     });
 }
 
+/**
+ * Carrega mensagens de um chat e DESLIGA o listener do chat anterior.
+ * @param {string} chatId 
+ */
 function loadChatMessages(chatId) {
+    // CORREÇÃO CRÍTICA: Desliga o listener ANTERIOR para parar de ouvir mensagens de outra conversa
+    if (activeChatRef) {
+        activeChatRef.off();
+    }
+
     const messagesArea = document.getElementById('messages-area');
     messagesArea.innerHTML = '';
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
 
-    if (currentChatListener) {
-        currentChatListener.off();
-    }
+    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
+    
+    // Guarda a nova referência para poder desligá-la depois
+    activeChatRef = messagesRef;
 
-    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(50);
-    currentChatListener = messagesRef.on('child_added', (snapshot) => {
+    // Liga o novo listener
+    activeChatRef.on('child_added', (snapshot) => {
         const message = snapshot.val();
         displayMessage(message, currentUser.id);
     });
