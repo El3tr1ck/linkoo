@@ -3,73 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linko</title>
-    <link rel="stylesheet" href="index.css">
+    <title>Chat com Firebase</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Painel de Cadastro de Perfil (escondido por padrão) -->
-    <div id="onboarding-panel" class="panel-container">
-        <div class="panel">
-            <h2>Crie seu perfil no Linko</h2>
-            <p>Escolha um nome de usuário único para começar.</p>
-            <form id="onboarding-form">
-                <label for="username">Nome de Usuário</label>
-                <input type="text" id="username" required minlength="3" maxlength="15">
-                
-                <label for="color">Cor do seu nome</label>
-                <input type="color" id="color" value="#20c997">
-                
-                <button type="submit">Salvar e Entrar</button>
-            </form>
-            <div id="onboarding-message"></div>
-        </div>
+
+    <!-- Tela de Login -->
+    <div id="login-container" class="container">
+        <h1>Entrar no Chat</h1>
+        <input type="text" id="username-input" placeholder="Digite seu nome de usuário">
+        <button id="login-button">Entrar</button>
     </div>
 
-    <!-- Painel para Adicionar Contato -->
-    <div id="add-contact-panel" class="panel-container">
-        <div class="panel">
-            <h2>Adicionar um novo contato</h2>
-            <p>Digite o nome de usuário exato do seu contato.</p>
-            <form id="add-contact-form">
-                <label for="contact-username">Nome de Usuário</p>
-                <input type="text" id="contact-username" required>
-                <button type="submit">Procurar e Adicionar</button>
-            </form>
-            <div id="add-contact-message"></div>
-            <button id="close-contact-panel-btn">Fechar</button>
-        </div>
-    </div>
-
-
-    <!-- Conteúdo Principal do App -->
-    <div id="app-content">
+    <!-- Interface Principal do Chat (escondida inicialmente) -->
+    <div id="chat-container" class="container hidden">
         <header>
-            <h1>Linko</h1>
-            <div>
-                <span id="user-display-name"></span>
-                <button id="logout-btn">Sair</button>
+            <div class="header-left">
+                <button id="add-profile-button">Adicionar Contato</button>
+            </div>
+            <div id="chat-header-info">
+                <h2>Selecione uma conversa</h2>
             </div>
         </header>
-        <main class="main-layout">
-            <!-- Coluna da Esquerda para Contatos -->
-            <div id="contacts-list" class="sidebar">
-                <div class="sidebar-header">
-                    <h3>Contatos</h3>
-                    <button id="add-contact-btn">+</button>
-                </div>
-                <div id="contacts-container">
-                    <!-- A lista de contatos será inserida aqui pelo JS -->
-                </div>
+        <main>
+            <div id="contacts-panel">
+                <!-- Lista de contatos/chats aparecerá aqui -->
             </div>
-
-            <!-- Coluna da Direita para o Chat -->
-            <div id="chat-area">
-                <p>Selecione um contato para começar a conversar.</p>
+            <div id="chat-panel">
+                <div id="messages-area">
+                    <!-- Mensagens do chat ativo aparecerão aqui -->
+                </div>
+                <div id="message-input-area">
+                     <button id="file-menu-button">+</button>
+                     <div id="file-options" class="hidden">
+                        <button id="send-photo-button">Enviar Foto</button>
+                        <button id="send-file-button">Enviar Arquivo</button>
+                     </div>
+                    <textarea id="message-input" placeholder="Digite sua mensagem..."></textarea>
+                    <button id="send-message-button">Enviar</button>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Scripts do Firebase e do nosso app -->
-    <script type="module" src="index.js"></script>
+    <!-- Painel para Adicionar Contato (escondido inicialmente) -->
+    <div id="add-profile-overlay" class="overlay hidden">
+        <div class="overlay-content">
+            <h3>Adicionar Contato</h3>
+            <input type="text" id="search-user-input" placeholder="Digite o nome ou ID do usuário">
+            <div id="search-results">
+                <!-- Resultados da busca aparecerão aqui -->
+            </div>
+            <button id="close-overlay-button">Fechar</button>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <!-- Biblioteca para Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Scripts do Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script> <!-- Opcional, mas bom para futuras expansões -->
+
+    <!-- Nossos Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/main.js"></script>
+
 </body>
 </html>
