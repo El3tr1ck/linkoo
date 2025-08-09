@@ -190,7 +190,7 @@ async function deleteCurrentUserAccount() {
     await database.ref('user_chats/' + currentUser.id).remove();
     await database.ref('blocked_users/' + currentUser.id).remove();
 
-    localStorage.clear();
+    sessionStorage.clear();
     window.location.reload();
 }
 
@@ -214,22 +214,22 @@ async function linkGoogleAccount() {
 }
 
 function updateUserBio(bio) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/bio`).set(bio);
 }
 
 function addUserLink(url) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links`).push({ url: url });
 }
 
 function removeUserLink(linkId) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
 }
 
 function submitUserRating(ratedUserId, rating) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
 
