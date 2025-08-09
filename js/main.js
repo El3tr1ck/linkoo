@@ -8,17 +8,20 @@ async function setActiveChat(chatInfo) {
 
     const chatHeaderUsername = document.getElementById('chat-header-username');
     const chatHeaderDetails = document.getElementById('chat-header-details');
+    const chatHeaderClickable = document.getElementById('chat-header-clickable-area');
     const optionsMenu = document.getElementById('chat-options-menu');
     const messagesArea = document.getElementById('messages-area');
     
+    chatHeaderClickable.onclick = null;
+    chatHeaderDetails.onclick = null;
     optionsMenu.innerHTML = '';
     messagesArea.innerHTML = '';
-    
+
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.innerHTML = chatInfo.withUsername;
         chatHeaderDetails.innerHTML = chatInfo.withUserId;
-        chatHeaderDetails.onclick = null;
         chatHeaderDetails.style.cursor = 'default';
+        chatHeaderClickable.dataset.userId = chatInfo.withUserId;
         
         const isBlocked = await checkIfBlocked(chatInfo.withUserId);
         optionsMenu.innerHTML = `
@@ -27,6 +30,7 @@ async function setActiveChat(chatInfo) {
         `;
     } else if (chatInfo.type === 'group') {
         chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
+        chatHeaderClickable.dataset.userId = ''; // Remove o click para o perfil do grupo no header
         
         const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
         if (!groupSnapshot.exists()) return;
@@ -67,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendPhotoButton = document.getElementById('send-photo-button');
     const deleteAccountButton = document.getElementById('delete-account-button');
     const backToContactsButton = document.getElementById('back-to-contacts-button');
+    const identityButton = document.getElementById('identity-button');
 
     const savedUser = sessionStorage.getItem('currentUser');
     if (savedUser) {
@@ -89,6 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
         document.getElementById('chat-conversation-screen').classList.add('hidden');
         document.getElementById('chat-welcome-screen').classList.remove('hidden');
+    });
+
+    identityButton.addEventListener('click', () => {
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        if (currentUser) {
+            toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
+        }
     });
 
     addContactButton.addEventListener('click', () => {
@@ -122,14 +134,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         const target = e.target;
-        if (target && target.classList.contains('add-user-btn')) {
+
+        if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
-        if (target && target.id === 'create-group-button-action') {
+        if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
             if (groupName && selectedUsers.length > 0) {
@@ -139,7 +152,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
+        
+        const clickableHeader = target.closest('#chat-header-clickable-area');
+        if (clickableHeader && clickableHeader.dataset.userId) {
+            toggleOverlay('profile-overlay', true, () => buildProfilePanel(clickableHeader.dataset.userId));
+        }
+        if (target.classList.contains('sender-name') && target.dataset.id) {
+            toggleOverlay('profile-overlay', true, () => buildProfilePanel(target.dataset.id));
+        }
+        if (target.id === 'google-login-btn') {
+            linkGoogleAccount();
+        }
+        if (target.id === 'add-link-btn') {
+            const urlInput = document.getElementById('new-link-input');
+            if (urlInput && urlInput.value) {
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+                const linkId = database.ref().push().key;
+                await database.ref(`users/${currentUser.id}/links/${linkId}`).set({ url: urlInput.value });
+                toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
+            }
+        }
+        const removeLinkBtn = target.closest('.remove-link-btn');
+        if (removeLinkBtn) {
+            const linkId = removeLinkBtn.dataset.linkId;
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+            await database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
+            toggleOverlay('profile-overlay', true, () => buildProfilePanel(currentUser.id));
+        }
+        
+        const star = target.closest('.star');
+        const starContainer = target.closest('.stars');
+        if (star && starContainer && starContainer.dataset.targetUserId) {
+            const score = parseInt(star.dataset.score);
+            const targetUserId = starContainer.dataset.targetUserId;
+            try {
+                await rateUser(targetUserId, score);
+                alert(`Você avaliou com ${score} estrelas!`);
+                toggleOverlay('profile-overlay', true, () => buildProfilePanel(targetUserId));
+            } catch (error) {
+                console.error("Erro ao avaliar:", error);
+                alert(error.message || "Não foi possível registrar sua avaliação.");
+            }
+        }
     });
+    
+    document.addEventListener('blur', (e) => {
+        if (e.target && e.target.id === 'bio-input') {
+            const newBio = e.target.value;
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+            database.ref(`users/${currentUser.id}/bio`).set(newBio);
+        }
+    }, true);
 
     chatOptionsButton.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -167,13 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'delete-chat-button':
                 if (confirm("Tem certeza que deseja apagar esta conversa?")) {
                     deleteConversation(activeChat.id);
-                    backToContactsButton.click(); // Simula o clique no botão de voltar
+                    backToContactsButton.click();
                 }
                 break;
             case 'leave-group-button':
                  if (confirm("Tem certeza que deseja sair deste grupo?")) {
                     leaveGroup(activeChat.id);
-                    backToContactsButton.click(); // Simula o clique no botão de voltar
+                    backToContactsButton.click();
                 }
                 break;
         }
