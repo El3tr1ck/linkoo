@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>linkoo</title>
+    <title>Meu Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -12,7 +12,7 @@
     <!-- TELA DE LOGIN -->
     <div id="login-container" class="container">
         <div class="login-box">
-            <h1>chat with linkoo</h1>
+            <h1>Meu Chat</h1>
             <p>Escolha um nome de usuário para começar.</p>
             <input type="text" id="username-input" placeholder="Seu nome de usuário">
             <button id="login-button">Entrar</button>
@@ -30,7 +30,11 @@
             <div id="contact-list" class="scrollable-list"></div>
             <div class="contacts-footer">
                 <div id="current-user-info"></div>
-                <button id="delete-account-button" class="danger-button"><i class="fa-solid fa-user-slash"></i> Apagar Conta</button>
+                <!-- NOVOS BOTÕES DE CONTA -->
+                <div class="account-actions">
+                    <button id="identity-button" class="action-button-secondary"><i class="fa-solid fa-id-card"></i> Identidade</button>
+                    <button id="delete-account-button" class="danger-button"><i class="fa-solid fa-user-slash"></i> Apagar Conta</button>
+                </div>
             </div>
         </div>
 
@@ -38,14 +42,13 @@
             <div id="chat-welcome-screen" class="chat-area-content">
                 <h2>Selecione uma conversa para começar</h2>
             </div>
-
             <div id="chat-conversation-screen" class="hidden chat-area-content">
                 <div class="chat-header">
                     <div class="chat-header-info">
-                        <!-- BOTÃO DE VOLTAR ADICIONADO AQUI -->
                         <button id="back-to-contacts-button" class="icon-button mobile-only"><i class="fa-solid fa-arrow-left"></i></button>
                         <div>
-                            <h3 id="chat-header-username"></h3>
+                            <!-- Este nome de usuário será clicável -->
+                            <h3 id="chat-header-username" class="clickable-name"></h3>
                             <p id="chat-header-details"></p>
                         </div>
                     </div>
@@ -71,12 +74,16 @@
     <div id="add-contact-overlay" class="overlay hidden"></div>
     <div id="new-group-overlay" class="overlay hidden"></div>
     <div id="participants-overlay" class="overlay hidden"></div>
+    <div id="identity-overlay" class="overlay hidden"></div> <!-- NOVO PAINEL DE IDENTIDADE -->
 
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- NOVO SDK DO FIREBASE AUTH -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
     <script src="./js/firebase-config.js"></script>
     <script src="./js/auth.js"></script>
     <script src="./js/ui.js"></script>
