@@ -1,4 +1,3 @@
-// NO ARQUIVO: main.js (SUBSTITUIR TUDO)
 let activeChat = null;
 
 async function setActiveChat(chatInfo) {
@@ -10,12 +9,11 @@ async function setActiveChat(chatInfo) {
     const chatHeaderUsername = document.getElementById('chat-header-username');
     const chatHeaderDetails = document.getElementById('chat-header-details');
     const optionsMenu = document.getElementById('chat-options-menu');
-    optionsMenu.innerHTML = ''; // Limpa opções antigas
+    optionsMenu.innerHTML = '';
 
     document.getElementById('chat-conversation-screen').classList.remove('hidden');
     document.getElementById('chat-welcome-screen').classList.add('hidden');
     
-    // BUG FIX: Garante que a área de mensagens esteja vazia antes de carregar novas
     document.getElementById('messages-area').innerHTML = '';
     loadChatMessages(chatInfo.id);
 
@@ -34,13 +32,13 @@ async function setActiveChat(chatInfo) {
         chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
         
         const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
-        if (!groupSnapshot.exists()) return; // Sai se o grupo foi deletado
+        if (!groupSnapshot.exists()) return;
         const groupData = groupSnapshot.val();
         
         const userSnapshot = await database.ref('users').once('value');
         const allUsers = userSnapshot.val();
         
-        const participants = Object.keys(groupData.participants).map(id => allUsers[id]).filter(Boolean); // Filtra usuários deletados
+        const participants = Object.keys(groupData.participants).map(id => allUsers[id]).filter(Boolean);
         const participantNames = participants.map(p => p.username).join(', ');
 
         chatHeaderDetails.innerHTML = participantNames.substring(0, 50) + (participantNames.length > 50 ? '...' : '');
@@ -55,7 +53,6 @@ async function setActiveChat(chatInfo) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Seletores de Elementos (CORRIGIDO) ---
     const loginButton = document.getElementById('login-button');
     const usernameInput = document.getElementById('username-input');
     const addContactButton = document.getElementById('add-contact-button');
@@ -65,8 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.getElementById('message-input');
     const fileMenuButton = document.getElementById('file-menu-button');
     const sendPhotoButton = document.getElementById('send-photo-button');
+    const deleteAccountButton = document.getElementById('delete-account-button');
 
-    // Verifica se já existe um usuário na sessão
     const savedUser = sessionStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
@@ -75,8 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUserChats(userData.id);
     }
     
-    // --- EVENTOS DE CLIQUE PRINCIPAIS ---
-
     loginButton.addEventListener('click', () => loginUser(usernameInput.value));
     usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value) });
 
@@ -89,20 +84,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     newGroupButton.addEventListener('click', () => {
-        toggleOverlay('new-group-overlay', true, buildNewGroupPanel);
-        setTimeout(() => {
-            const createBtn = document.getElementById('create-group-button-action');
-            if(createBtn) createBtn.addEventListener('click', () => {
-                const groupName = document.getElementById('group-name-input').value;
-                const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
-                if (groupName && selectedUsers.length > 0) {
-                    createGroup(groupName, selectedUsers);
-                    toggleOverlay('new-group-overlay', false);
-                } else {
-                    alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
-                }
-            });
-        }, 100);
+        const overlay = document.getElementById('new-group-overlay');
+        overlay.innerHTML = `
+            <div class="overlay-content">
+                <button class="close-button" onclick="toggleOverlay('new-group-overlay', false)">&times;</button>
+                <h3>Criar Novo Grupo</h3>
+                <input type="text" id="group-name-input" placeholder="Nome do Grupo">
+                <h4>Selecionar Participantes (Apenas Contatos):</h4>
+                <div id="group-user-list" class="scrollable-list"></div>
+                <button id="create-group-button-action" class="action-button">Criar Grupo</button>
+            </div>`;
+        toggleOverlay('new-group-overlay', true);
+        buildNewGroupPanelContent();
+    });
+
+    deleteAccountButton.addEventListener('click', () => {
+        if (confirm("ATENÇÃO: Ação irreversível!\n\nVocê tem certeza que deseja apagar sua conta? Todos os seus dados, mensagens e participação em grupos serão permanentemente removidos.")) {
+            if(confirm("ÚLTIMO AVISO: Confirma a exclusão permanente da sua conta?")) {
+                deleteCurrentUserAccount();
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target && target.classList.contains('add-user-btn')) {
+            const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
+            startChatWith(userData);
+            toggleOverlay('add-contact-overlay', false);
+        }
+        if (target && target.id === 'create-group-button-action') {
+            const groupName = document.getElementById('group-name-input').value;
+            const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
+            if (groupName && selectedUsers.length > 0) {
+                createGroup(groupName, selectedUsers);
+                toggleOverlay('new-group-overlay', false);
+            } else {
+                alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
+            }
+        }
     });
 
     chatOptionsButton.addEventListener('click', (e) => {
@@ -120,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'block-user-button':
                 checkIfBlocked(activeChat.withUserId).then(isBlocked => {
                     if (isBlocked) {
-                        unblockUser(activeChat.withUserId);
+                        unblockUser(active.withUserId);
                         button.innerHTML = `<i class="fa-solid fa-ban"></i> Bloquear`;
                     } else {
                         blockUser(activeChat.withUserId);
@@ -175,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('file-options').classList.add('hidden');
     });
     
-    // Fecha menus de contexto se clicar fora
     document.addEventListener('click', () => {
         document.getElementById('file-options').classList.add('hidden');
         document.getElementById('chat-options-menu').classList.add('hidden');
