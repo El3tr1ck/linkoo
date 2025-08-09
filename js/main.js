@@ -1,23 +1,31 @@
 let activeChat = null;
 
+/**
+ * Função central para trocar a conversa ativa.
+ * Limpa e recarrega toda a UI do chat para o usuário/grupo selecionado.
+ * @param {object} chatInfo - As informações do chat a ser ativado.
+ */
 async function setActiveChat(chatInfo) {
+    // 1. Define o novo chat como ativo
     activeChat = chatInfo;
     
+    // 2. Atualiza a lista de contatos para destacar o item ativo
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-    document.getElementById(`contact-${chatInfo.id}`).classList.add('active');
+    document.getElementById(`contact-${chatInfo.id}`)?.classList.add('active');
 
+    // 3. Pega referências dos elementos da UI para fácil acesso
     const chatHeaderUsername = document.getElementById('chat-header-username');
     const chatHeaderDetails = document.getElementById('chat-header-details');
     const optionsMenu = document.getElementById('chat-options-menu');
-    optionsMenu.innerHTML = '';
-
-    document.getElementById('chat-conversation-screen').classList.remove('hidden');
-    document.getElementById('chat-welcome-screen').classList.add('hidden');
+    const messagesArea = document.getElementById('messages-area');
     
-    document.getElementById('messages-area').innerHTML = '';
-    loadChatMessages(chatInfo.id);
+    // 4. Limpa o conteúdo anterior para evitar "vazamento" de dados entre conversas
+    optionsMenu.innerHTML = '';
+    messagesArea.innerHTML = '';
 
+    // 5. Atualiza a UI com base no tipo de chat (Direto ou Grupo)
     if (chatInfo.type === 'direct') {
+        // --- LÓGICA PARA CHAT DIRETO ---
         chatHeaderUsername.innerHTML = chatInfo.withUsername;
         chatHeaderDetails.innerHTML = chatInfo.withUserId;
         chatHeaderDetails.onclick = null;
@@ -29,10 +37,11 @@ async function setActiveChat(chatInfo) {
             <button id="delete-chat-button" class="danger"><i class="fa-solid fa-trash"></i> Apagar Conversa</button>
         `;
     } else if (chatInfo.type === 'group') {
+        // --- LÓGICA PARA CHAT EM GRUPO ---
         chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
         
         const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
-        if (!groupSnapshot.exists()) return;
+        if (!groupSnapshot.exists()) return; // Prevenção se o grupo for deletado
         const groupData = groupSnapshot.val();
         
         const userSnapshot = await database.ref('users').once('value');
@@ -49,10 +58,20 @@ async function setActiveChat(chatInfo) {
         optionsMenu.innerHTML = `<button id="leave-group-button" class="danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Grupo</button>`;
     }
 
+    // 6. Carrega as mensagens do chat recém-ativado
+    loadChatMessages(chatInfo.id);
+
+    // 7. Mostra a tela de conversa e esconde a de boas-vindas
+    document.getElementById('chat-conversation-screen').classList.remove('hidden');
+    document.getElementById('chat-welcome-screen').classList.add('hidden');
     document.getElementById('message-input').focus();
+    
+    // 8. Ativa o modo de chat no celular
+    document.body.classList.add('chat-active');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Seletores de Elementos ---
     const loginButton = document.getElementById('login-button');
     const usernameInput = document.getElementById('username-input');
     const addContactButton = document.getElementById('add-contact-button');
@@ -63,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileMenuButton = document.getElementById('file-menu-button');
     const sendPhotoButton = document.getElementById('send-photo-button');
     const deleteAccountButton = document.getElementById('delete-account-button');
+    const backToContactsButton = document.getElementById('back-to-contacts-button');
 
+    // --- Lógica de Inicialização ---
     const savedUser = sessionStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
@@ -72,8 +93,15 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUserChats(userData.id);
     }
     
+    // --- Event Listeners ---
     loginButton.addEventListener('click', () => loginUser(usernameInput.value));
-    usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value) });
+    usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value); });
+
+    backToContactsButton.addEventListener('click', () => {
+        document.body.classList.remove('chat-active');
+        activeChat = null; // Limpa o chat ativo ao voltar
+        document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+    });
 
     addContactButton.addEventListener('click', () => {
         toggleOverlay('add-contact-overlay', true, buildAddContactPanel);
@@ -99,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     deleteAccountButton.addEventListener('click', () => {
-        if (confirm("ATENÇÃO: Ação irreversível!\n\nVocê tem certeza que deseja apagar sua conta? Todos os seus dados, mensagens e participação em grupos serão permanentemente removidos.")) {
+        if (confirm("ATENÇÃO: Ação irreversível!\n\nVocê tem certeza que deseja apagar sua conta?")) {
             if(confirm("ÚLTIMO AVISO: Confirma a exclusão permanente da sua conta?")) {
                 deleteCurrentUserAccount();
             }
@@ -140,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'block-user-button':
                 checkIfBlocked(activeChat.withUserId).then(isBlocked => {
                     if (isBlocked) {
-                        unblockUser(active.withUserId);
+                        unblockUser(activeChat.withUserId);
                         button.innerHTML = `<i class="fa-solid fa-ban"></i> Bloquear`;
                     } else {
                         blockUser(activeChat.withUserId);
@@ -149,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 break;
             case 'delete-chat-button':
-                if (confirm("Tem certeza que deseja apagar esta conversa? Ela sumirá apenas para você.")) {
+                if (confirm("Tem certeza que deseja apagar esta conversa?")) {
                     deleteConversation(activeChat.id);
                     window.location.reload();
                 }
@@ -195,8 +223,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('file-options').classList.add('hidden');
     });
     
-    document.addEventListener('click', () => {
-        document.getElementById('file-options').classList.add('hidden');
-        document.getElementById('chat-options-menu').classList.add('hidden');
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.message-input-area') && !e.target.closest('.chat-header-options')) {
+            document.getElementById('file-options').classList.add('hidden');
+            document.getElementById('chat-options-menu').classList.add('hidden');
+        }
     });
 });
