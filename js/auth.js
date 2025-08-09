@@ -1,15 +1,21 @@
-// Gera um ID único no formato especificado: 5 letras + # + número
+/**
+ * Gera um ID customizado no formato: 5 letras + # + 4 números.
+ * @returns {string} O ID gerado.
+ */
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
     for (let i = 0; i < 5; i++) {
         randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    const randomNumber = Math.floor(1000 + Math.random() * 9000); // Gera número de 4 dígitos
+    const randomNumber = Math.floor(1000 + Math.random() * 9000);
     return `${randomChars}#${randomNumber}`;
 }
 
-// Função de Login
+/**
+ * Realiza o login do usuário, criando um registro no banco de dados.
+ * @param {string} username - O nome de usuário escolhido.
+ */
 async function loginUser(username) {
     if (!username || username.trim().length < 3) {
         alert("O nome de usuário precisa ter pelo menos 3 caracteres.");
@@ -19,42 +25,41 @@ async function loginUser(username) {
     const userId = generateCustomId();
     const userRef = database.ref('users/' + userId);
 
-    // Salva as informações do usuário no banco de dados
+    const userData = {
+        username: username,
+        id: userId,
+        status: 'online',
+        last_seen: firebase.database.ServerValue.TIMESTAMP
+    };
+
     try {
-        await userRef.set({
-            username: username,
-            id: userId,
-            status: 'online', // Adicionando status de presença
-            last_seen: firebase.database.ServerValue.TIMESTAMP
-        });
-
-        // Salva informações do usuário localmente para uso na sessão
+        await userRef.set(userData);
+        
+        // Salva os dados do usuário na sessão do navegador
         sessionStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
-
-        // Configura a presença (online/offline)
+        
         setupPresence(userId);
-
-        // Muda para a tela de chat
         showChatInterface();
         loadUserChats(userId);
 
     } catch (error) {
         console.error("Erro ao fazer login:", error);
-        alert("Não foi possível fazer o login. Tente novamente.");
+        alert("Não foi possível conectar. Verifique sua configuração do Firebase e a conexão com a internet.");
     }
 }
 
-// Configura o sistema de presença
+/**
+ * Configura o sistema de presença para atualizar o status do usuário (online/offline).
+ * @param {string} userId - O ID do usuário atual.
+ */
 function setupPresence(userId) {
     const userStatusRef = database.ref('/users/' + userId);
     const presenceRef = database.ref('.info/connected');
 
     presenceRef.on('value', (snap) => {
         if (snap.val() === true) {
-            // Usuário está conectado
             userStatusRef.update({ status: 'online' });
-
-            // Se o usuário desconectar, o Firebase definirá o status para offline
+            // Quando o usuário desconectar (fechar a aba), o Firebase atualizará o status
             userStatusRef.onDisconnect().update({
                 status: 'offline',
                 last_seen: firebase.database.ServerValue.TIMESTAMP
