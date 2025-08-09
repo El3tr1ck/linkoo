@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const identityButton = document.getElementById('identity-button');
 
     // --- Lógica de Inicialização ---
-    const savedUser = localStorage.getItem('currentUser');
+    const savedUser = sessionStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
         setupPresence(userData.id);
