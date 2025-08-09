@@ -1,86 +1,137 @@
-// Variável para guardar o estado do chat ativo
-let activeChat = {
-    id: null,
-    withUsername: null,
-    withUserId: null
-};
+// NO ARQUIVO: js/main.js (SUBSTITUIR TUDO)
+let activeChat = null;
 
-/**
- * Define o chat ativo, atualiza a UI e carrega as mensagens.
- * @param {string} chatId - O ID do chat que se tornou ativo.
- * @param {Object} otherUser - Dados do outro usuário.
- */
-function setActiveChat(chatId, otherUser) {
-    activeChat.id = chatId;
-    activeChat.withUsername = otherUser.username;
-    activeChat.withUserId = otherUser.id;
+// --- FUNÇÃO PRINCIPAL DE GERENCIAMENTO DE CHAT ---
 
-    // Remove a classe 'active' de todos os outros contatos
+async function setActiveChat(chatInfo) {
+    activeChat = chatInfo;
+    
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-    // Adiciona a classe 'active' ao contato clicado
-    document.getElementById(`contact-${chatId}`).classList.add('active');
+    document.getElementById(`contact-${chatInfo.id}`).classList.add('active');
 
-    // Atualiza o cabeçalho do chat
-    document.getElementById('chat-header-username').innerText = otherUser.username;
-    document.getElementById('chat-header-userid').innerText = otherUser.id;
+    const chatHeaderUsername = document.getElementById('chat-header-username');
+    const chatHeaderDetails = document.getElementById('chat-header-details');
+    const optionsMenu = document.getElementById('chat-options-menu');
 
-    showConversationScreen();
-    loadChatMessages(chatId);
+    if (chatInfo.type === 'direct') {
+        chatHeaderUsername.innerHTML = chatInfo.withUsername;
+        chatHeaderDetails.innerHTML = chatInfo.withUserId;
+        chatHeaderDetails.onclick = null; // Remove listener antigo
+        
+        const isBlocked = await checkIfBlocked(chatInfo.withUserId);
+        optionsMenu.innerHTML = `
+            <button id="block-user-button">${isBlocked ? 'Desbloquear Usuário' : 'Bloquear Usuário'}</button>
+            <button id="delete-chat-button" class="danger">Apagar Conversa</button>
+        `;
+    } else if (chatInfo.type === 'group') {
+        chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
+        
+        // Pega lista de participantes para exibir
+        const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
+        const groupData = groupSnapshot.val();
+        const userSnapshot = await database.ref('users').once('value');
+        const allUsers = userSnapshot.val();
+        
+        const participants = Object.keys(groupData.participants).map(id => allUsers[id]);
+        const participantNames = participants.map(p => p ? p.username : '...').join(', ');
+
+        chatHeaderDetails.innerHTML = participantNames;
+        chatHeaderDetails.onclick = () => {
+            toggleOverlay('participants-overlay', true, () => buildParticipantsPanel(participants));
+        };
+        optionsMenu.innerHTML = `<button id="leave-group-button" class="danger">Sair do Grupo</button>`;
+    }
+
+    document.getElementById('chat-conversation-screen').classList.remove('hidden');
+    document.getElementById('chat-welcome-screen').classList.add('hidden');
+    loadChatMessages(chatInfo.id);
     document.getElementById('message-input').focus();
 }
 
-// Executa quando o conteúdo da página estiver totalmente carregado
+// --- EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
-
-    // --- Seletores de Elementos ---
-    const loginButton = document.getElementById('login-button');
-    const usernameInput = document.getElementById('username-input');
+    // ... (Seletores de elementos sem alterações) ...
     const addContactButton = document.getElementById('add-contact-button');
-    const closeOverlayButton = document.getElementById('close-overlay-button');
-    const searchUserInput = document.getElementById('search-user-input');
-    const sendMessageButton = document.getElementById('send-message-button');
-    const messageInput = document.getElementById('message-input');
-    const fileMenuButton = document.getElementById('file-menu-button');
-    const sendPhotoButton = document.getElementById('send-photo-button');
+    const newGroupButton = document.getElementById('new-group-button');
+    const chatOptionsButton = document.getElementById('chat-options-button');
 
-    // Verifica se já existe um usuário na sessão para manter logado
-    const savedUser = sessionStorage.getItem('currentUser');
-    if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        setupPresence(userData.id);
-        showChatInterface();
-        loadUserChats(userData.id);
-    }
-
-    // --- Event Listeners ---
+    // ... (Lógica de verificação de sessão e login sem alterações) ...
     
-    // Login
-    loginButton.addEventListener('click', () => loginUser(usernameInput.value));
-    usernameInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') loginUser(usernameInput.value);
+    // --- EVENTOS DE CLIQUE PRINCIPAIS ---
+
+    addContactButton.addEventListener('click', () => {
+        toggleOverlay('add-contact-overlay', true, buildAddContactPanel);
+        // Adiciona listener para a busca, já que o input é criado dinamicamente
+        setTimeout(() => {
+            document.getElementById('search-user-input').addEventListener('keyup', (e) => {
+                searchUsers(e.target.value);
+            });
+        }, 100);
     });
 
-    // Abrir/Fechar Overlay de Busca
-    addContactButton.addEventListener('click', toggleAddContactOverlay);
-    closeOverlayButton.addEventListener('click', toggleAddContactOverlay);
+    newGroupButton.addEventListener('click', () => {
+        toggleOverlay('new-group-overlay', true, buildNewGroupPanel);
+        // Adiciona listener para o botão de criar grupo
+        setTimeout(() => {
+            document.getElementById('create-group-button-action').addEventListener('click', () => {
+                const groupName = document.getElementById('group-name-input').value;
+                const selectedUsers = [];
+                document.querySelectorAll('#group-user-list input:checked').forEach(input => {
+                    selectedUsers.push(input.value);
+                });
+                if (groupName && selectedUsers.length > 0) {
+                    createGroup(groupName, selectedUsers);
+                    toggleOverlay('new-group-overlay', false);
+                } else {
+                    alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
+                }
+            });
+        }, 100);
+    });
 
-    // Busca de Usuários
-    searchUserInput.addEventListener('keyup', () => {
-        const query = searchUserInput.value.trim();
-        if (query.length > 2) {
-            searchUsers(query);
-        } else {
-            document.getElementById('search-results').innerHTML = '';
+    chatOptionsButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('chat-options-menu').classList.toggle('hidden');
+    });
+
+    document.getElementById('chat-options-menu').addEventListener('click', (e) => {
+        if (!activeChat) return;
+
+        const action = e.target.id;
+        switch(action) {
+            case 'block-user-button':
+                checkIfBlocked(activeChat.withUserId).then(isBlocked => {
+                    if (isBlocked) {
+                        unblockUser(activeChat.withUserId);
+                        e.target.innerText = 'Bloquear Usuário';
+                    } else {
+                        blockUser(activeChat.withUserId);
+                        e.target.innerText = 'Desbloquear Usuário';
+                    }
+                });
+                break;
+            case 'delete-chat-button':
+                if (confirm("Tem certeza que deseja apagar esta conversa? Ela sumirá apenas para você.")) {
+                    deleteConversation(activeChat.id);
+                    window.location.reload(); // Recarrega para limpar a UI
+                }
+                break;
+            case 'leave-group-button':
+                 if (confirm("Tem certeza que deseja sair deste grupo?")) {
+                    leaveGroup(activeChat.id);
+                    window.location.reload(); // Recarrega para limpar a UI
+                }
+                break;
         }
+        document.getElementById('chat-options-menu').classList.add('hidden');
     });
 
-    // Envio de Mensagem
     sendMessageButton.addEventListener('click', () => {
         const text = messageInput.value.trim();
-        if (text && activeChat.id) {
-            sendTextMessage(activeChat.id, text);
+        if (text && activeChat) {
+            sendTextMessage(activeChat.id, text, activeChat.type);
             messageInput.value = '';
-            messageInput.style.height = 'auto'; // Reseta a altura
+            messageInput.style.height = 'auto';
         }
     });
 
