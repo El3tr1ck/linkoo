@@ -1,5 +1,7 @@
+// NO ARQUIVO: js/auth.js
+
 /**
- * Gera um ID customizado no formato: 5 letras + # + 4 números.
+ * Gera um ID customizado no formato: 5 letras + - + 4 números.
  * @returns {string} O ID gerado.
  */
 function generateCustomId() {
@@ -9,8 +11,13 @@ function generateCustomId() {
         randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
-    return `${randomChars}#${randomNumber}`;
+    
+    // --- ESTA É A LINHA CORRIGIDA ---
+    // Trocamos o "#" por um "-" que é um caractere válido.
+    return `${randomChars}-${randomNumber}`; 
 }
+
+// O resto do arquivo auth.js permanece exatamente o mesmo...
 
 /**
  * Realiza o login do usuário, criando um registro no banco de dados.
@@ -22,7 +29,7 @@ async function loginUser(username) {
         return;
     }
 
-    const userId = generateCustomId();
+    const userId = generateCustomId(); // Agora gera um ID válido, como "AdfCQ-1234"
     const userRef = database.ref('users/' + userId);
 
     const userData = {
@@ -35,7 +42,6 @@ async function loginUser(username) {
     try {
         await userRef.set(userData);
         
-        // Salva os dados do usuário na sessão do navegador
         sessionStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
         
         setupPresence(userId);
@@ -48,22 +54,4 @@ async function loginUser(username) {
     }
 }
 
-/**
- * Configura o sistema de presença para atualizar o status do usuário (online/offline).
- * @param {string} userId - O ID do usuário atual.
- */
-function setupPresence(userId) {
-    const userStatusRef = database.ref('/users/' + userId);
-    const presenceRef = database.ref('.info/connected');
-
-    presenceRef.on('value', (snap) => {
-        if (snap.val() === true) {
-            userStatusRef.update({ status: 'online' });
-            // Quando o usuário desconectar (fechar a aba), o Firebase atualizará o status
-            userStatusRef.onDisconnect().update({
-                status: 'offline',
-                last_seen: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-    });
-}
+// ...o resto do arquivo continua igual.
