@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Chat</title>
-    <!-- Font Awesome para Ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- TELA DE LOGIN -->
+    <!-- TELA DE LOGIN (sem alterações) -->
     <div id="login-container" class="container">
         <div class="login-box">
             <h1>Meu Chat</h1>
@@ -22,8 +21,6 @@
 
     <!-- INTERFACE PRINCIPAL DO CHAT -->
     <div id="chat-container" class="hidden">
-        
-        <!-- PAINEL ESQUERDO: CONTATOS -->
         <div id="contacts-panel">
             <div class="contacts-header">
                 <button id="add-contact-button"><i class="fa-solid fa-plus"></i> Novo Chat</button>
@@ -31,31 +28,38 @@
             <div id="contact-list"></div>
         </div>
 
-        <!-- PAINEL DIREITO: CONVERSA -->
         <div id="chat-panel">
             <div id="chat-welcome-screen" class="chat-area-content">
                 <h2>Selecione uma conversa para começar</h2>
             </div>
-
-            <div id="chat-conversation-screen" class="hidden chat-area-content">
+            <div id="chat-conversation-screen" class="hidden">
                 <div class="chat-header">
-                    <h3 id="chat-header-username"></h3>
-                    <p id="chat-header-userid"></p>
+                    <div>
+                        <h3 id="chat-header-username"></h3>
+                        <p id="chat-header-userid"></p>
+                    </div>
+                    <div class="chat-header-options">
+                        <button id="chat-options-button" class="icon-button"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                        <div id="chat-options-menu" class="context-menu hidden">
+                            <button id="block-user-button">Bloquear Usuário</button>
+                            <button id="delete-chat-button">Apagar Conversa</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="messages-area"></div>
                 <div class="message-input-area">
                     <div id="file-options" class="hidden">
                        <button id="send-photo-button"><i class="fa-solid fa-image"></i> Enviar Foto</button>
                     </div>
-                    <button id="file-menu-button" class="input-action-button"><i class="fa-solid fa-plus"></i></button>
+                    <button id="file-menu-button" class="icon-button"><i class="fa-solid fa-plus"></i></button>
                     <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
-                    <button id="send-message-button" class="input-action-button"><i class="fa-solid fa-paper-plane"></i></button>
+                    <button id="send-message-button" class="icon-button"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PAINEL (OVERLAY) PARA ADICIONAR CONTATO -->
+    <!-- OVERLAY (sem alterações) -->
     <div id="add-contact-overlay" class="overlay hidden">
         <div class="overlay-content">
             <button id="close-overlay-button" class="close-button"><i class="fa-solid fa-xmark"></i></button>
@@ -65,22 +69,15 @@
         </div>
     </div>
 
-    <!-- SCRIPTS -->
-    <!-- Biblioteca para Markdown -->
+    <!-- SCRIPTS (sem alterações) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Biblioteca para Sanitizar HTML (Segurança do Markdown) -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
-
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <!-- Nossos Scripts -->
     <script src="./js/firebase-config.js"></script>
     <script src="./js/auth.js"></script>
     <script src="./js/ui.js"></script>
     <script src="./js/chat.js"></script>
     <script src="./js/main.js"></script>
-
 </body>
 </html>
