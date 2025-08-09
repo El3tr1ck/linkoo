@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Chat</title>
+    <!-- Font Awesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,31 +13,28 @@
     <!-- TELA DE LOGIN -->
     <div id="login-container" class="container">
         <div class="login-box">
-            <h1>Bem-vindo ao Chat</h1>
+            <h1>Meu Chat</h1>
             <p>Escolha um nome de usuário para começar.</p>
             <input type="text" id="username-input" placeholder="Seu nome de usuário">
             <button id="login-button">Entrar</button>
         </div>
     </div>
 
-    <!-- INTERFACE PRINCIPAL DO CHAT (escondida por padrão) -->
+    <!-- INTERFACE PRINCIPAL DO CHAT -->
     <div id="chat-container" class="hidden">
         
         <!-- PAINEL ESQUERDO: CONTATOS -->
         <div id="contacts-panel">
             <div class="contacts-header">
-                <button id="add-contact-button">➕ Novo Chat</button>
+                <button id="add-contact-button"><i class="fa-solid fa-plus"></i> Novo Chat</button>
             </div>
-            <div id="contact-list">
-                <!-- A lista de conversas será inserida aqui pelo JS -->
-            </div>
+            <div id="contact-list"></div>
         </div>
 
         <!-- PAINEL DIREITO: CONVERSA -->
         <div id="chat-panel">
             <div id="chat-welcome-screen" class="chat-area-content">
                 <h2>Selecione uma conversa para começar</h2>
-                <p>Use o botão "Novo Chat" para encontrar usuários e iniciar uma conversa.</p>
             </div>
 
             <div id="chat-conversation-screen" class="hidden chat-area-content">
@@ -43,16 +42,14 @@
                     <h3 id="chat-header-username"></h3>
                     <p id="chat-header-userid"></p>
                 </div>
-                <div id="messages-area">
-                    <!-- As mensagens serão inseridas aqui pelo JS -->
-                </div>
+                <div id="messages-area"></div>
                 <div class="message-input-area">
-                    <button id="file-menu-button" class="input-action-button">+</button>
                     <div id="file-options" class="hidden">
-                       <button id="send-photo-button">📷 Foto</button>
+                       <button id="send-photo-button"><i class="fa-solid fa-image"></i> Enviar Foto</button>
                     </div>
+                    <button id="file-menu-button" class="input-action-button"><i class="fa-solid fa-plus"></i></button>
                     <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
-                    <button id="send-message-button" class="input-action-button">➤</button>
+                    <button id="send-message-button" class="input-action-button"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
@@ -61,16 +58,19 @@
     <!-- PAINEL (OVERLAY) PARA ADICIONAR CONTATO -->
     <div id="add-contact-overlay" class="overlay hidden">
         <div class="overlay-content">
-            <button id="close-overlay-button" class="close-button">X</button>
+            <button id="close-overlay-button" class="close-button"><i class="fa-solid fa-xmark"></i></button>
             <h3>Iniciar uma nova conversa</h3>
             <input type="text" id="search-user-input" placeholder="Buscar por nome de usuário...">
-            <div id="search-results">
-                <!-- Os resultados da busca aparecerão aqui -->
-            </div>
+            <div id="search-results"></div>
         </div>
     </div>
 
     <!-- SCRIPTS -->
+    <!-- Biblioteca para Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Biblioteca para Sanitizar HTML (Segurança do Markdown) -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
