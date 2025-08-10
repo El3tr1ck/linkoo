@@ -91,12 +91,12 @@ function displayMessage(message, currentUserId) {
     const bubble = document.createElement('div');
     bubble.classList.add('message-bubble');
     bubble.id = `msg-${message.id}`;
+    // NOVO: Adiciona o senderId como um atributo de dados para fácil acesso
     bubble.dataset.senderId = message.senderId;
     
     const isSent = message.senderId === currentUserId;
     bubble.classList.add(isSent ? 'sent' : 'received');
     
-    // ATUALIZADO: para incluir o status e informações de edição
     const contentHtml = buildMessageContent(message);
     const metaHtml = buildMessageMeta(message, isSent);
 
