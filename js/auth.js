@@ -1,3 +1,5 @@
+--- START OF FILE auth.js ---
+
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
@@ -28,6 +30,7 @@ async function loginUser(username) {
     try {
         await userRef.set(userData);
         
+        // ALTERADO: de sessionStorage para localStorage para persistir o login
         localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
         
         setupPresence(userId);
@@ -54,3 +57,4 @@ function setupPresence(userId) {
         }
     });
 }
+--- END OF FILE auth.js ---
