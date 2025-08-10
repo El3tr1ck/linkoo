@@ -12,7 +12,6 @@ async function setActiveChat(chatInfo) {
     
     optionsMenu.innerHTML = '';
     
-    // ATRIBUI o ID do usuário ao cabeçalho para ser clicável
     chatHeaderUsername.dataset.userid = '';
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.dataset.userid = chatInfo.withUserId;
@@ -60,7 +59,6 @@ async function setActiveChat(chatInfo) {
     document.body.classList.add('chat-active');
 }
 
-// NOVA FUNÇÃO para abrir o painel de identidade
 async function showIdentityPanel(userId) {
     const overlay = document.getElementById('identity-overlay');
     overlay.innerHTML = await buildIdentityPanel(userId);
@@ -84,7 +82,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const identityButton = document.getElementById('identity-button');
 
     // --- Lógica de Inicialização ---
-    // ALTERADO: de sessionStorage para localStorage para persistir o login
+
+    // =========================================================================
+    // NOVO BLOCO: CAPTURA O RESULTADO DO LOGIN GOOGLE APÓS O REDIRECIONAMENTO
+    // Este código verifica se o usuário está voltando da página do Google.
+    firebase.auth().getRedirectResult()
+        .then((result) => {
+            // Se 'result.user' existir, o login foi bem-sucedido.
+            if (result && result.user) {
+                const email = result.user.email;
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+                // Verifica se temos um email do Google e um usuário logado no nosso app
+                if (email && currentUser) {
+                    // Vincula a conta Google ao perfil do usuário no nosso banco de dados
+                    database.ref(`users/${currentUser.id}/googleEmail`).set(email)
+                        .then(() => {
+                            alert("Conta Google vinculada com sucesso!");
+                            // Opcional: recarregar o painel de identidade se ele estava aberto
+                            showIdentityPanel(currentUser.id);
+                        })
+                        .catch((dbError) => {
+                            console.error("Erro ao salvar o email no banco de dados:", dbError);
+                            alert("Sua conta foi autenticada pelo Google, mas houve um erro ao salvar a informação no seu perfil.");
+                        });
+                }
+            }
+        }).catch((error) => {
+            // Lida com erros comuns do redirecionamento
+            console.error("Erro no redirecionamento do Google Login:", error);
+            if (error.code === 'auth/account-exists-with-different-credential') {
+                alert("Erro: Já existe uma conta com este e-mail, mas usando um método de login diferente.");
+            } else {
+                alert("Ocorreu um erro ao tentar vincular a conta Google.");
+            }
+        });
+    // FIM DO NOVO BLOCO
+    // =========================================================================
+
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         const userData = JSON.parse(savedUser);
@@ -110,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     identityButton.addEventListener('click', () => {
-        // ALTERADO: de sessionStorage para localStorage
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
         showIdentityPanel(currentUser.id);
     });
@@ -183,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (url) {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
-                // ALTERADO: de sessionStorage para localStorage
                 const me = JSON.parse(localStorage.getItem('currentUser'));
                 showIdentityPanel(me.id); // Recarrega o painel
             }
@@ -308,4 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('chat-options-menu').classList.add('hidden');
         }
     });
-});
+});```
+
+Com este arquivo e o `chat.js` anterior, o seu fluxo de login com o Google deve funcionar perfeitamente em todas as plataformas, incluindo celulares.
