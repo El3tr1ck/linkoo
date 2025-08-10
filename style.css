@@ -12,6 +12,15 @@
     --hover-color: #4e4f50;
     --danger-color: #ff4d4d;
     --star-color: #f7d952;
+
+    /* MELHORIA: Variáveis para áreas seguras (notch/barras de sistema) */
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+/* MELHORIA: Box-sizing universal para um layout mais previsível */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 body {
@@ -19,6 +28,9 @@ body {
     margin: 0;
     background-color: var(--bg-color);
     color: var(--primary-text-color);
+    /* CORREÇÃO: Aplicar a altura aqui para evitar problemas com 100vh */
+    height: 100vh;
+    width: 100vw;
     overflow: hidden;
 }
 
@@ -31,23 +43,36 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* TELA DE LOGIN */
-#login-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
+#login-container { display: flex; justify-content: center; align-items: center; height: 100%; }
 .login-box { padding: 40px; background: var(--primary-surface-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center; }
 #username-input { font-size: 1rem; padding: 10px; margin: 10px 0; width: 250px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--secondary-surface-color); color: var(--primary-text-color); }
 #login-button { font-size: 1rem; padding: 10px 20px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
 #login-button:hover { background-color: #0a6ab3; }
 
 /* ESTRUTURA PRINCIPAL DO CHAT */
-#chat-container { display: flex; height: 100vh; position: relative; overflow: hidden; }
+/* CORREÇÃO: Usar 100% da altura do body */
+#chat-container { display: flex; height: 100%; position: relative; overflow: hidden; }
 #contacts-panel { width: 35%; max-width: 360px; background: var(--primary-surface-color); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transition: transform 0.3s ease-in-out; }
 #chat-panel { width: 100%; display: flex; flex-direction: column; background-color: var(--bg-color); }
 
 /* PAINEL DE CONTATOS (ESQUERDA) */
-.contacts-header { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; }
+.contacts-header { 
+    padding: 10px; 
+    /* MELHORIA: Adiciona padding no topo para acomodar o notch */
+    padding-top: calc(10px + var(--safe-area-top));
+    border-bottom: 1px solid var(--border-color); 
+    display: flex; 
+    gap: 10px; 
+}
 #add-contact-button, #new-group-button { width: 100%; padding: 10px; font-size: 0.9rem; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #add-contact-button:hover, #new-group-button:hover { background-color: var(--hover-color); }
 
-.scrollable-list { overflow-y: auto; flex-grow: 1; }
+.scrollable-list { 
+    overflow-y: auto; 
+    flex-grow: 1; 
+    /* MELHORIA: Impede o scroll da página inteira ao rolar a lista */
+    overscroll-behavior: contain;
+}
 #contact-list.scrollable-list { border: none; padding: 0; }
 
 .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; }
@@ -57,7 +82,12 @@ body {
 .status-dot.online { color: #31a24c; }
 
 /* Rodapé do Painel de Contatos */
-.contacts-footer { padding: 10px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+.contacts-footer { 
+    padding: 10px; 
+    /* MELHORIA: Adiciona padding em baixo para acomodar a barra de gestos */
+    padding-bottom: calc(10px + var(--safe-area-bottom));
+    border-top: 1px solid var(--border-color); flex-shrink: 0; 
+}
 #current-user-info { padding: 5px; font-size: 0.9em; color: var(--secondary-text-color); }
 #current-user-info strong { color: var(--primary-text-color); }
 #identity-button { width: 100%; margin-top: 10px; padding: 10px; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s; }
@@ -66,10 +96,20 @@ body {
 .danger-button:hover { background-color: var(--danger-color); color: white; }
 
 /* PAINEL DE CHAT (DIREITA) */
-.chat-area-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; }
-#chat-welcome-screen { justify-content: center; align-items: center; text-align: center; color: var(--secondary-text-color); }
-#chat-conversation-screen { height: 100%; }
-.chat-header { padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--primary-surface-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.chat-area-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; } /* Usar 100% e não 100vh */
+#chat-welcome-screen { display: flex; justify-content: center; align-items: center; text-align: center; color: var(--secondary-text-color); flex-grow: 1;}
+#chat-conversation-screen { height: 100%; display: flex; flex-direction: column; }
+.chat-header { 
+    padding: 10px 20px; 
+    /* MELHORIA: Adiciona padding no topo para acomodar o notch */
+    padding-top: calc(10px + var(--safe-area-top));
+    border-bottom: 1px solid var(--border-color); 
+    background-color: var(--primary-surface-color); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    flex-shrink: 0; 
+}
 .chat-header-info { display: flex; align-items: center; gap: 15px; }
 .chat-header-info h3 { margin: 0; }
 .clickable-name:hover { text-decoration: underline; cursor: pointer; }
@@ -82,7 +122,7 @@ body {
 .mobile-only { display: none; }
 
 /* Área de Mensagens */
-#messages-area { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+#messages-area { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
 .message-bubble { max-width: 65%; width: fit-content; padding: 8px 14px; border-radius: 18px; word-wrap: break-word; line-height: 1.4; }
 .message-bubble.sent { background-color: var(--sent-bubble-bg); color: white; align-self: flex-end; }
 .message-bubble.received { background-color: var(--received-bubble-bg); color: var(--primary-text-color); align-self: flex-start; }
@@ -100,7 +140,18 @@ body {
 .message-bubble blockquote { border-left: 3px solid var(--secondary-text-color); padding-left: 10px; margin-left: 0; color: var(--secondary-text-color); }
 
 /* Área de Input de Mensagem */
-.message-input-area { position: relative; display: flex; align-items: center; padding: 10px; background: var(--primary-surface-color); gap: 10px; flex-shrink: 0; border-top: 1px solid var(--border-color); }
+.message-input-area { 
+    position: relative; 
+    display: flex; 
+    align-items: center; 
+    padding: 10px; 
+    /* MELHORIA: Adiciona padding em baixo para acomodar a barra de gestos */
+    padding-bottom: calc(10px + var(--safe-area-bottom));
+    background: var(--primary-surface-color); 
+    gap: 10px; 
+    flex-shrink: 0; 
+    border-top: 1px solid var(--border-color); 
+}
 #message-input { flex-grow: 1; border: none; background: var(--secondary-surface-color); border-radius: 18px; padding: 10px 15px; font-size: 1rem; color: var(--primary-text-color); resize: none; max-height: 120px; }
 #message-input:focus { outline: none; }
 
@@ -136,17 +187,43 @@ body {
 .star-rating { display: flex; justify-content: center; margin: 15px 0; }
 .star-rating i { font-size: 1.8rem; color: var(--secondary-surface-color); cursor: pointer; transition: color 0.2s, transform 0.2s; }
 .star-rating i:hover { color: var(--star-color); transform: scale(1.1); }
-.star-rating.user-rated i.selected, .star-rating:hover i:hover ~ i { color: var(--secondary-surface-color) !important; }
-.star-rating:hover i:hover, .star-rating.user-rated i.selected ~ i { color: var(--star-color) !important; }
-.rating-summary { text-align: center; color: var(--secondary-text-color); }
-.rating-summary .fa-star { color: var(--star-color); }
-
+.star-rating i.fa-solid { color: var(--star-color); }
 
 /* === RESPONSIVIDADE PARA CELULAR === */
 @media (max-width: 768px) {
-    #contacts-panel { width: 100%; max-width: none; position: absolute; top: 0; left: 0; height: 100%; transform: translateX(0); z-index: 20; }
-    #chat-panel { display: flex; width: 100%; position: absolute; top: 0; left: 0; height: 100%; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 30; }
-    body.chat-active #contacts-panel { transform: translateX(-100%); }
-    body.chat-active #chat-panel { transform: translateX(0); }
-    .mobile-only { display: block; }
+    #contacts-panel { 
+        width: 100%; 
+        max-width: none; 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        height: 100%; 
+        transform: translateX(0); 
+        z-index: 20; 
+        border-right: none;
+    }
+    #chat-panel { 
+        display: flex; 
+        width: 100%; 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        height: 100%; 
+        transform: translateX(100%); 
+        transition: transform 0.3s ease-in-out; 
+        z-index: 30; 
+    }
+    body.chat-active #contacts-panel { 
+        transform: translateX(-100%); 
+    }
+    body.chat-active #chat-panel { 
+        transform: translateX(0); 
+    }
+    .mobile-only { 
+        display: block; 
+    }
+    .message-bubble {
+        /* MELHORIA: Aumenta um pouco o tamanho máximo das bolhas em telas menores */
+        max-width: 85%;
+    }
 }
