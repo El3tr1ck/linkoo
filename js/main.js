@@ -341,6 +341,4 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('chat-options-menu').classList.add('hidden');
         }
     });
-});```
-
-Com este arquivo e o `chat.js` anterior, o seu fluxo de login com o Google deve funcionar perfeitamente em todas as plataformas, incluindo celulares.
+});
