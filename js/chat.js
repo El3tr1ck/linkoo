@@ -3,7 +3,6 @@ let activeChatRef = null;
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
 
 function searchUsers(query) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const usersRef = database.ref('users');
     
@@ -20,7 +19,6 @@ function searchUsers(query) {
 }
 
 function startChatWith(otherUser) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
     
@@ -59,7 +57,6 @@ function loadChatMessages(chatId) {
 
     const messagesArea = document.getElementById('messages-area');
     messagesArea.innerHTML = '';
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
     const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
@@ -74,7 +71,6 @@ function loadChatMessages(chatId) {
 // --- FUNÇÕES DE ENVIO DE MENSAGEM ---
 
 async function sendTextMessage(chatId, text, chatType) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (chatType === 'direct') {
         const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
@@ -114,7 +110,6 @@ function handlePhotoUpload(chatId) {
 }
 
 function sendImageMessage(chatId, base64String) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const message = {
         senderId: currentUser.id,
@@ -127,7 +122,6 @@ function sendImageMessage(chatId, base64String) {
 // --- FUNÇÕES DE GRUPO ---
 
 function createGroup(groupName, participantIds) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const groupId = database.ref('groups').push().key;
 
@@ -150,7 +144,6 @@ function createGroup(groupName, participantIds) {
 }
 
 function leaveGroup(groupId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
     database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
@@ -159,32 +152,27 @@ function leaveGroup(groupId) {
 // --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
 
 function blockUser(otherUserId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
 }
 
 function unblockUser(otherUserId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).remove();
 }
 
 async function checkIfBlocked(otherUserId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const snapshot = await database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).once('value');
     return snapshot.exists();
 }
 
 function deleteConversation(chatId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
 }
 
 async function deleteCurrentUserAccount() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) return;
 
@@ -202,51 +190,36 @@ async function deleteCurrentUserAccount() {
     await database.ref('user_chats/' + currentUser.id).remove();
     await database.ref('blocked_users/' + currentUser.id).remove();
 
-    // ALTERADO: de sessionStorage para localStorage para limpar os dados persistentes
     localStorage.clear();
     window.location.reload();
 }
 
 // --- NOVAS FUNÇÕES DE IDENTIDADE ---
 
-async function linkGoogleAccount() {
+// ALTERADO: A função agora usa signInWithRedirect para maior compatibilidade com celulares.
+function linkGoogleAccount() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-        const result = await firebase.auth().signInWithPopup(provider);
-        const email = result.user.email;
-        // ALTERADO: de sessionStorage para localStorage
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (email && currentUser) {
-            await database.ref(`users/${currentUser.id}/googleEmail`).set(email);
-            alert("Conta Google vinculada com sucesso!");
-            showIdentityPanel(currentUser.id); // Recarrega o painel
-        }
-    } catch (error) {
-        console.error("Erro ao vincular conta Google:", error);
-        alert("Não foi possível vincular a conta Google. Erro: " + error.message);
-    }
+    // Inicia o processo de login redirecionando para a página do Google.
+    // O navegador sairá do seu site e voltará depois.
+    firebase.auth().signInWithRedirect(provider);
 }
 
 function updateUserBio(bio) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/bio`).set(bio);
 }
 
 function addUserLink(url) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links`).push({ url: url });
 }
 
 function removeUserLink(linkId) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
 }
 
 function submitUserRating(ratedUserId, rating) {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
