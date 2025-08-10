@@ -1,3 +1,4 @@
+// A sua função original para gerar o ID que você quer manter.
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
@@ -14,26 +15,39 @@ async function loginUser(username) {
         return;
     }
 
-    const userId = generateCustomId();
-    const userRef = database.ref('users/' + userId);
-
-    const userData = {
-        username: username,
-        id: userId,
-        status: 'online',
-        createdAt: firebase.database.ServerValue.TIMESTAMP, // CAMPO ADICIONADO
-        last_seen: firebase.database.ServerValue.TIMESTAMP
-    };
-
     try {
+        // 1. Autentica o usuário anonimamente para obter um `auth.uid` seguro.
+        const userCredential = await firebase.auth().signInAnonymously();
+        const authUid = userCredential.user.uid;
+
+        // 2. Gera seu ID customizado.
+        const customId = generateCustomId();
+        
+        const userRef = database.ref('users/' + customId);
+
+        // 3. Prepara os dados do usuário, incluindo a "prova de propriedade" (authUid).
+        const userData = {
+            username: username,
+            id: customId,
+            authUid: authUid, // CAMPO CRUCIAL PARA A SEGURANÇA
+            status: 'online',
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            last_seen: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        // 4. Salva os dados. Isso funcionará com as novas regras.
         await userRef.set(userData);
         
-        // ALTERADO: de sessionStorage para localStorage para persistir o login
-        localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
+        // 5. Salva no localStorage para uso na sessão.
+        localStorage.setItem('currentUser', JSON.stringify({ 
+            username: username, 
+            id: customId,
+            authUid: authUid 
+        }));
         
-        setupPresence(userId);
+        setupPresence(customId);
         showChatInterface();
-        loadUserChats(userId);
+        loadUserChats(customId);
 
     } catch (error) {
         console.error("Erro Crítico no Login:", error);
@@ -41,7 +55,7 @@ async function loginUser(username) {
     }
 }
 
-function setupPresence(userId) {
+function setupPresence(customUserId) {
     const userStatusRef = database.ref('/users/' + userId);
     const presenceRef = database.ref('.info/connected');
 
