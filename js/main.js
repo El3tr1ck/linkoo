@@ -1,5 +1,3 @@
---- START OF FILE main.js ---
-
 let activeChat = null;
 
 async function setActiveChat(chatInfo) {
@@ -311,4 +309,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
---- END OF FILE main.js ---
