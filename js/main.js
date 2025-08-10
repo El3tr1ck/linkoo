@@ -102,47 +102,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // =====================================================================
-    //  BLOCO DE DEPURAÇÃO PARA O LOGIN GOOGLE
-    // =====================================================================
-    console.log("Ponto de Prova 1: App carregado, esperando resultado do redirect.");
-
+    // --- Lógica para o PLANO B (Redirect) ---
     firebase.auth().getRedirectResult()
         .then((result) => {
-            console.log("Ponto de Prova 2: getRedirectResult() foi concluído.");
-
             if (result && result.user) {
-                console.log("Ponto de Prova 3: Sucesso! Dados recebidos do Google.", result.user);
-                
                 const email = result.user.email;
                 const localUser = JSON.parse(localStorage.getItem('currentUser'));
-
                 if (email && localUser) {
-                    console.log(`Ponto de Prova 4: Tentando salvar o email '${email}' para o usuário '${localUser.id}'`);
-                    
                     database.ref(`users/${localUser.id}/googleEmail`).set(email)
                         .then(() => {
-                            console.log("Ponto de Prova 5: SUCESSO! O email foi escrito no banco de dados.");
                             alert("Conta Google vinculada com sucesso!");
-
                             if (!document.getElementById('identity-overlay').classList.contains('hidden')) {
-                                console.log("Recarregando o painel de identidade...");
                                 showIdentityPanel(localUser.id);
                             }
                         })
                         .catch((dbError) => {
-                            console.error("Ponto de Prova 5: FALHA! Erro ao escrever no banco de dados.", dbError);
-                            alert("Falha ao salvar o email no seu perfil. Verifique o console para mais detalhes.");
+                            console.error("Erro ao salvar o email no banco de dados via redirect:", dbError);
                         });
-                } else {
-                    console.warn("Ponto de Prova 4: Falha. Não foi possível encontrar o email do Google ou o usuário local.", { email, localUser });
                 }
-            } else {
-                console.log("Ponto de Prova 3: Nenhum resultado de redirecionamento encontrado. Isso é normal se não houve login.");
             }
         }).catch((error) => {
-            console.error("Ponto de Prova 2: FALHA! Ocorreu um erro crítico no getRedirectResult().", error);
-            alert("Ocorreu um erro ao tentar vincular a conta Google.");
+            console.error("Erro no getRedirectResult:", error);
         });
 
     // --- Event Listeners ---
