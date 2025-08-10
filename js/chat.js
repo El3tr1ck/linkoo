@@ -36,7 +36,7 @@ function loadUserChats(userId) {
         const chatInfo = { ...snapshot.val(), id: snapshot.key };
         addUserToContactsList(chatInfo);
     });
-     userChatsRef.on('child_changed', snapshot => {
+    userChatsRef.on('child_changed', snapshot => {
         const chatInfo = { ...snapshot.val(), id: snapshot.key };
         updateContactUnreadCount(chatInfo.id, chatInfo.unreadCount);
     });
@@ -80,7 +80,6 @@ function loadChatMessages(chatId) {
         updateMessageInUI(message);
     });
 }
-
 
 // --- FUNÇÕES DE ENVIO DE MENSAGEM ---
 
@@ -188,17 +187,15 @@ function resetUnreadCount(chatId) {
 }
 
 
-// --- FUNÇÕES DE "DIGITANDO" (CORRIGIDO) ---
+// --- FUNÇÕES DE "DIGITANDO" ---
 function setTypingStatus(chatId, isTyping) {
     const authUser = firebase.auth().currentUser;
-    if (!authUser) return; // Não faz nada se não estiver autenticado
-
-    const typingRef = database.ref(`typing_status/${chatId}/${authUser.uid}`); // Usa o auth.uid real
+    if (!authUser) return;
+    const typingRef = database.ref(`typing_status/${chatId}/${authUser.uid}`);
     if (isTyping) {
-        // Salva o nome de usuário para exibição
         const localUser = JSON.parse(localStorage.getItem('currentUser'));
         typingRef.set(localUser.username);
-        typingRef.onDisconnect().remove(); // Garante que será removido se o usuário fechar a aba
+        typingRef.onDisconnect().remove();
     } else {
         typingRef.remove();
     }
@@ -207,15 +204,12 @@ function setTypingStatus(chatId, isTyping) {
 function listenForTypingStatus(chatId) {
     const authUser = firebase.auth().currentUser;
     if (!authUser) return;
-
     const typingRef = database.ref(`typing_status/${chatId}`);
-    
     typingRef.on('value', snapshot => {
         const typingUsers = [];
         snapshot.forEach(childSnap => {
-            // Compara com o auth.uid real, que é a chave no DB
             if(childSnap.key !== authUser.uid){
-                typingUsers.push(childSnap.val()); // Pega o nome de usuário salvo
+                typingUsers.push(childSnap.val());
             }
         });
         updateTypingIndicator(typingUsers);
@@ -225,11 +219,13 @@ function listenForTypingStatus(chatId) {
 // --- FUNÇÕES DE GRUPO ---
 
 function createGroup(groupName, participantIds) {
-    // ... (Esta função ainda precisa ser ajustada para a lógica de auth.uid vs customId)
+    // Esta função ainda precisa de ajustes para a lógica de auth.uid vs customId
 }
 
 function leaveGroup(groupId) {
-    // ...
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`groups/${groupId}/participants/${currentUser.authUid}`).remove(); // Usa authUid
+    database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
 }
 
 // --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
@@ -256,12 +252,11 @@ function deleteConversation(chatId) {
 }
 
 async function deleteCurrentUserAccount() {
-    // ...
+    // Esta função precisa de uma lógica mais robusta para lidar com a exclusão segura
 }
 
-// --- FUNÇÕES DE IDENTIDADE (CORRIGIDO) ---
+// --- FUNÇÕES DE IDENTIDADE ---
 
-// CORRIGIDO: Usa linkWithRedirect para VINCULAR a uma conta existente, mantendo o auth.uid
 function linkGoogleAccount() {
     const authUser = firebase.auth().currentUser;
     if (!authUser) {
@@ -270,8 +265,41 @@ function linkGoogleAccount() {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Esta é a função correta. Ela VINCULA o Google à conta anônima ATUAL.
-    authUser.linkWithRedirect(provider);
+    
+    // Tenta o método Pop-up primeiro.
+    authUser.linkWithPopup(provider)
+        .then((result) => {
+            // Se o Pop-up funcionar, o resultado é processado aqui mesmo.
+            console.log("Sucesso no Pop-up! Vinculando dados...");
+            const email = result.user.email;
+            const localUser = JSON.parse(localStorage.getItem('currentUser'));
+
+            if (email && localUser) {
+                database.ref(`users/${localUser.id}/googleEmail`).set(email)
+                    .then(() => {
+                        alert("Conta Google vinculada com sucesso!");
+                        if (!document.getElementById('identity-overlay').classList.contains('hidden')) {
+                            showIdentityPanel(localUser.id);
+                        }
+                    })
+                    .catch((dbError) => {
+                        console.error("Erro ao salvar o email no banco de dados:", dbError);
+                    });
+            }
+        })
+        .catch((error) => {
+            // Se o Pop-up falhar, verificamos o motivo.
+            if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+                // Se foi bloqueado ou fechado, usamos o Plano B: Redirect.
+                console.warn("Pop-up bloqueado. Tentando o método de redirecionamento como fallback.");
+                authUser.linkWithRedirect(provider);
+            } else if (error.code === 'auth/credential-already-in-use') {
+                alert("Erro: Esta conta do Google já está vinculada a outro usuário do sistema.");
+            } else {
+                console.error("Erro ao vincular com Pop-up:", error);
+                alert("Ocorreu um erro desconhecido ao vincular a conta.");
+            }
+        });
 }
 
 function updateUserBio(bio) {
@@ -292,8 +320,6 @@ function removeUserLink(linkId) {
 function submitUserRating(ratedUserId, rating) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
-    
-    // CORRIGIDO: Usa o auth.uid do avaliador para marcar que ele já avaliou
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.authUid}`);
 
     ratingRef.transaction((currentRatings) => {
