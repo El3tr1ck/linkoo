@@ -1,12 +1,9 @@
-// --- START OF FILE ui.js --- (CORRIGIDO)
-
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
     document.getElementById('chat-container').classList.add('hidden');
 }
 
 function showChatInterface() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
@@ -23,7 +20,9 @@ function toggleOverlay(overlayId, show) {
         overlay.classList.remove('hidden');
     } else {
         overlay.classList.add('hidden');
-        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar
+        if(overlayId !== 'message-context-menu') {
+            overlay.innerHTML = ''; // Limpa o conteúdo ao fechar, exceto o menu de msg
+        }
     }
 }
 
@@ -37,18 +36,27 @@ function addUserToContactsList(chatInfo) {
     contactDiv.onclick = () => setActiveChat(chatInfo);
 
     let html = '';
+    const unreadBadge = `<div class="unread-badge hidden" id="unread-${chatInfo.id}">0</div>`;
+
     if (chatInfo.type === 'group') {
         html = `
             <div class="status-dot"><i class="fa-solid fa-users"></i></div>
-            <div><strong>${convertMarkdownToHtml(chatInfo.groupName)}</strong></div>`;
+            <div class="contact-details">
+                <strong>${convertMarkdownToHtml(chatInfo.groupName)}</strong>
+            </div>
+            ${unreadBadge}`;
     } else {
         html = `
             <div id="status-${chatInfo.withUserId}" class="status-dot offline"><i class="fa-solid fa-circle"></i></div>
-            <div><strong>${chatInfo.withUsername}</strong></div>`;
+            <div class="contact-details">
+                <strong>${chatInfo.withUsername}</strong>
+            </div>
+            ${unreadBadge}`;
         listenForStatusUpdates(chatInfo.withUserId);
     }
     contactDiv.innerHTML = html;
     contactList.prepend(contactDiv);
+    updateContactUnreadCount(chatInfo.id, chatInfo.unreadCount);
 }
 
 function removeContactFromList(chatId) {
@@ -64,29 +72,105 @@ function updateContactStatus(userId, status) {
     }
 }
 
+// --- NOVA FUNÇÃO PARA CONTADOR DE MENSAGENS NÃO LIDAS ---
+function updateContactUnreadCount(chatId, count) {
+    const badge = document.getElementById(`unread-${chatId}`);
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+
 function displayMessage(message, currentUserId) {
     const messagesArea = document.getElementById('messages-area');
     const bubble = document.createElement('div');
     bubble.classList.add('message-bubble');
-    bubble.classList.add(message.senderId === currentUserId ? 'sent' : 'received');
-
-    let content = '';
-    if (message.text) {
-        content = convertMarkdownToHtml(message.text);
-    } else if (message.imageUrl) {
-        content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
-    }
+    bubble.id = `msg-${message.id}`;
+    bubble.dataset.senderId = message.senderId;
     
-    if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        // Adiciona o nome do remetente clicável para grupos
-        bubble.innerHTML = `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
-    } else {
-        bubble.innerHTML = content;
-    }
+    const isSent = message.senderId === currentUserId;
+    bubble.classList.add(isSent ? 'sent' : 'received');
+    
+    // ATUALIZADO: para incluir o status e informações de edição
+    const contentHtml = buildMessageContent(message);
+    const metaHtml = buildMessageMeta(message, isSent);
+
+    bubble.innerHTML = contentHtml + metaHtml;
     
     messagesArea.appendChild(bubble);
     messagesArea.scrollTop = messagesArea.scrollHeight;
 }
+
+// --- NOVA FUNÇÃO PARA ATUALIZAR MENSAGEM EXISTENTE NA UI (EDIÇÃO, STATUS) ---
+function updateMessageInUI(message) {
+    const bubble = document.getElementById(`msg-${message.id}`);
+    if (!bubble) return;
+
+    const isSent = bubble.classList.contains('sent');
+    
+    const contentHtml = buildMessageContent(message);
+    const metaHtml = buildMessageMeta(message, isSent);
+
+    bubble.innerHTML = contentHtml + metaHtml;
+}
+
+// --- NOVAS FUNÇÕES AUXILIARES PARA CONSTRUIR O HTML DA MENSAGEM ---
+function buildMessageContent(message) {
+    let content = '';
+    if (message.isDeleted) {
+        content = `<span class="deleted-text">${convertMarkdownToHtml(message.text)}</span>`;
+    } else if (message.text) {
+        content = convertMarkdownToHtml(message.text);
+    } else if (message.imageUrl) {
+        content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
+    }
+
+    if (activeChat.type === 'group' && !bubble.classList.contains('sent')) {
+        return `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
+    }
+    return content;
+}
+
+function buildMessageMeta(message, isSent) {
+    const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const editedTag = message.isEdited ? '<span class="edited-tag">(editado)</span>' : '';
+    
+    let statusIcon = '';
+    if(isSent && !message.isDeleted) {
+        switch (message.status) {
+            case 'read':
+                statusIcon = '<i class="fa-solid fa-check-double receipt-read"></i>';
+                break;
+            case 'delivered':
+                 statusIcon = '<i class="fa-solid fa-check-double"></i>';
+                break;
+            case 'sent':
+            default:
+                statusIcon = '<i class="fa-solid fa-check"></i>';
+        }
+    }
+
+    return `<div class="message-meta">${editedTag} ${time} ${statusIcon}</div>`;
+}
+
+// --- NOVA FUNÇÃO PARA O INDICADOR DE "DIGITANDO" ---
+function updateTypingIndicator(typingUsers) {
+    const detailsElement = document.getElementById('chat-header-details');
+    const originalDetails = detailsElement.dataset.originalText || detailsElement.innerHTML;
+
+    if (typingUsers.length > 0) {
+        const names = typingUsers.join(', ');
+        detailsElement.innerHTML = `<span class="typing-indicator">${names} digitando...</span>`;
+    } else {
+        detailsElement.innerHTML = originalDetails;
+    }
+}
+
 
 // --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
 
@@ -124,7 +208,6 @@ function displaySearchResults(users) {
 }
 
 async function buildNewGroupPanelContent() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
     const allUsersSnapshot = await database.ref('users').once('value');
@@ -166,17 +249,13 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
-// --- NOVA FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
-
 async function buildIdentityPanel(userId) {
-    // ALTERADO: de sessionStorage para localStorage - ESTA É A CORREÇÃO PRINCIPAL
     const me = JSON.parse(localStorage.getItem('currentUser'));
     const isMyProfile = userId === me.id;
 
     const userRef = database.ref(`users/${userId}`);
     const snapshot = await userRef.once('value');
     
-    // Adicionada uma verificação de segurança, como sugerido anteriormente
     if (!snapshot.exists()) {
         console.error("Usuário não encontrado com o ID:", userId);
         return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
@@ -197,7 +276,6 @@ async function buildIdentityPanel(userId) {
         `).join('');
     }
 
-    // Lógica de Avaliação
     let ratingHtml = '';
     const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
     const totalRatings = userData.ratings ? userData.ratings.count : 0;
@@ -235,7 +313,7 @@ async function buildIdentityPanel(userId) {
             <h4>Biografia</h4>
             ${isMyProfile 
                 ? `<textarea id="bio-textarea" placeholder="Conte um pouco sobre você...">${userData.bio || ''}</textarea><button id="save-bio-btn" class="action-button">Salvar Bio</button>` 
-                : `<p>${userData.bio || 'Nenhuma biografia definida.'}</p>`
+                : `<p>${convertMarkdownToHtml(userData.bio) || 'Nenhuma biografia definida.'}</p>`
             }
             
             <hr>
