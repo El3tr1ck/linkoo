@@ -1,5 +1,3 @@
---- START OF FILE chat.js ---
-
 let activeChatRef = null;
 
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
@@ -271,4 +269,3 @@ function convertMarkdownToHtml(text) {
     const sanitizedHtml = DOMPurify.sanitize(rawHtml);
     return sanitizedHtml;
 }
---- END OF FILE chat.js ---
