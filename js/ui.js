@@ -1,23 +1,6 @@
-// --- LÓGICA DE NOTIFICAÇÕES GLOBAIS ---
-let originalTitle = document.title;
-let notificationCount = 0;
+--- START OF FILE ui.js ---
 
-function showNotification(title, body) {
-    // Atualiza o título da aba
-    notificationCount++;
-    document.title = `(${notificationCount}) ${originalTitle}`;
-
-    // Mostra notificação do navegador se a permissão foi concedida
-    if (Notification.permission === 'granted') {
-        new Notification(title, {
-            body: body,
-            icon: '/favicon.ico' // Opcional: adicione um ícone (precisa existir no seu projeto)
-        });
-    }
-}
-
-
-// --- FUNÇÕES DE EXIBIÇÃO DA INTERFACE ---
+// --- FUNÇÕES DE UI (GERAIS) ---
 
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
@@ -41,9 +24,11 @@ function toggleOverlay(overlayId, show) {
         overlay.classList.remove('hidden');
     } else {
         overlay.classList.add('hidden');
-        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar para evitar dados antigos
+        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar
     }
 }
+
+// --- FUNÇÕES DA LISTA DE CONTATOS ---
 
 function addUserToContactsList(chatInfo) {
     const contactList = document.getElementById('contact-list');
@@ -79,138 +64,134 @@ function updateContactStatus(userId, status) {
     if (statusDot) {
         statusDot.innerHTML = `<i class="fa-solid fa-circle"></i>`;
         statusDot.classList.toggle('online', status === 'online');
-        statusDot.classList.toggle('offline', status !== 'online');
     }
 }
 
-function displayMessage(message, currentUserId) {
-    const messagesArea = document.getElementById('messages-area');
-    const isScrolledToBottom = messagesArea.scrollHeight - messagesArea.clientHeight <= messagesArea.scrollTop + 1;
+// --- FUNÇÕES DA ÁREA DE MENSAGENS ---
 
-    const bubble = document.createElement('div');
-    bubble.id = `message-${message.id}`;
-    bubble.classList.add('message-bubble');
-    bubble.classList.add(message.senderId === currentUserId ? 'sent' : 'received');
-    if (message.isDeleted) {
-        bubble.classList.add('deleted');
-    }
+// --- ALTERADO: Função principal de exibição de mensagens ---
+function displayMessage(message, currentUserId) {
+    if (document.getElementById(`msg-${message.id}`)) return; // Evita duplicatas
+
+    const messagesArea = document.getElementById('messages-area');
+    const bubbleWrapper = document.createElement('div');
+    bubbleWrapper.classList.add('message-bubble-wrapper');
+    bubbleWrapper.id = `msg-${message.id}`;
+
+    const isSent = message.senderId === currentUserId;
+    bubbleWrapper.classList.add(isSent ? 'sent' : 'received');
 
     let contentHtml = '';
-    if (message.imageUrl) {
-        contentHtml = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
-    } else {
+    if (message.text) {
         contentHtml = convertMarkdownToHtml(message.text);
+    } else if (message.imageUrl) {
+        contentHtml = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
     }
+
+    const senderNameHtml = (activeChat.type === 'group' && !isSent) 
+        ? `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>` 
+        : '';
     
-    let bubbleInnerHtml = '';
-    if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        bubbleInnerHtml += `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>`;
-    }
-    bubbleInnerHtml += `<div class="message-content">${contentHtml}</div>`;
+    const readReceiptHtml = getReadReceiptIcon(message, currentUserId);
+    const editedHtml = message.editedAt ? '<span class="edited-label">(editado)</span>' : '';
+    const timestamp = new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    const metadataHtml = `
-        <div class="message-metadata">
-            ${message.edited ? '<span class="edited-indicator">(editado)</span>' : ''}
-            ${message.senderId === currentUserId ? getReadReceiptIcon(message) : ''}
-        </div>
-    `;
-
-    const optionsHtml = (message.senderId === currentUserId && !message.isDeleted) ? `
+    // --- NOVO: Menu de opções para mensagens enviadas ---
+    const messageOptionsHtml = isSent ? `
         <div class="message-options">
-            <button class="icon-button options-btn" data-message-id="${message.id}" data-message-text="${message.text || ''}"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-            <div class="context-menu message-context-menu hidden" id="menu-${message.id}">
-                <button class="edit-btn"><i class="fa-solid fa-pencil"></i> Editar</button>
-                <button class="delete-btn danger"><i class="fa-solid fa-trash"></i> Apagar</button>
+            <i class="fa-solid fa-ellipsis-vertical options-trigger"></i>
+            <div class="options-menu hidden">
+                <button class="edit-message-btn" data-message-id="${message.id}" data-chat-id="${activeChat.id}">Editar</button>
+                <button class="delete-message-btn danger" data-message-id="${message.id}" data-chat-id="${activeChat.id}">Apagar</button>
             </div>
         </div>
     ` : '';
+
+    bubbleWrapper.innerHTML = `
+        <div class="message-bubble">
+            ${senderNameHtml}
+            <div class="message-content">${contentHtml}</div>
+            <div class="message-meta">
+                ${editedHtml}
+                <span class="timestamp">${timestamp}</span>
+                ${isSent ? `<span class="read-receipt" id="receipt-${message.id}">${readReceiptHtml}</span>` : ''}
+            </div>
+        </div>
+        ${messageOptionsHtml}
+    `;
     
-    bubble.innerHTML = bubbleInnerHtml + metadataHtml + optionsHtml;
-    
-    messagesArea.appendChild(bubble);
-    
-    if (isScrolledToBottom) {
-        messagesArea.scrollTop = messagesArea.scrollHeight;
+    messagesArea.appendChild(bubbleWrapper);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+}
+
+// --- NOVO: Função para atualizar uma mensagem existente (edição, recibos) ---
+function updateMessageDisplay(message) {
+    const messageElement = document.getElementById(`msg-${message.id}`);
+    if (!messageElement) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const isSent = message.senderId === currentUser.id;
+
+    // Atualiza texto se foi editado
+    if (message.editedAt) {
+        const contentDiv = messageElement.querySelector('.message-content');
+        if (contentDiv) contentDiv.innerHTML = convertMarkdownToHtml(message.text);
+        
+        const metaDiv = messageElement.querySelector('.message-meta');
+        if (metaDiv && !metaDiv.querySelector('.edited-label')) {
+            const editedSpan = document.createElement('span');
+            editedSpan.className = 'edited-label';
+            editedSpan.textContent = '(editado)';
+            metaDiv.prepend(editedSpan);
+        }
+    }
+
+    // Atualiza recibo de leitura
+    if (isSent) {
+        const receiptSpan = document.getElementById(`receipt-${message.id}`);
+        if (receiptSpan) {
+            receiptSpan.innerHTML = getReadReceiptIcon(message, currentUser.id);
+        }
     }
 }
 
-// NOVO: Função para obter o ícone de recibo de leitura correto
-function getReadReceiptIcon(message) {
-    if (!activeChat) return '';
-    const readByCount = message.readBy ? Object.keys(message.readBy).length : 0;
+// --- NOVO: Função auxiliar para obter o ícone do recibo ---
+function getReadReceiptIcon(message, currentUserId) {
+    if (message.senderId !== currentUserId) return '';
     
-    let totalParticipants = 0;
-    if (activeChat.type === 'direct') {
-        totalParticipants = 2;
-    } else if (activeChat.participants) {
-        totalParticipants = Object.keys(activeChat.participants).length;
-    }
-    
-    const isReadByAll = (activeChat.type === 'direct') ? readByCount > 1 : readByCount >= totalParticipants;
-    
-    if (isReadByAll) {
-        return `<span class="read-receipt"><i class="fa-solid fa-check-double read"></i></span>`;
+    const otherUserIds = activeChat.type === 'direct' 
+        ? [activeChat.withUserId]
+        : Object.keys(activeChat.participants || {}).filter(id => id !== currentUserId);
+
+    const hasReadAll = otherUserIds.length > 0 && otherUserIds.every(id => message.readBy && message.readBy[id]);
+
+    if (hasReadAll) {
+        return '<i class="fa-solid fa-check-double read"></i>'; // Lida (azul)
+    } else if (message.readBy) {
+        return '<i class="fa-solid fa-check-double"></i>'; // Entregue/lida por alguns
     } else {
-        return `<span class="read-receipt"><i class="fa-solid fa-check"></i></span>`;
+        return '<i class="fa-solid fa-check"></i>'; // Enviada
     }
 }
 
-// NOVO: Atualiza uma mensagem existente na tela (para edições, recibos de leitura)
-function updateDisplayedMessage(updatedMessage) {
-    const bubble = document.getElementById(`message-${updatedMessage.id}`);
-    if (!bubble) return;
-
-    // Atualiza o conteúdo da mensagem
-    if (bubble.querySelector('.message-content')) {
-        bubble.querySelector('.message-content').innerHTML = updatedMessage.isDeleted ? 'Esta mensagem foi apagada.' : convertMarkdownToHtml(updatedMessage.text);
-    }
-
-    // Atualiza o estado de "editado" e o recibo de leitura
-    const metadata = bubble.querySelector('.message-metadata');
-    if (metadata) {
-        const currentUserId = JSON.parse(localStorage.getItem('currentUser')).id;
-        metadata.innerHTML = `
-            ${updatedMessage.edited ? '<span class="edited-indicator">(editado)</span>' : ''}
-            ${updatedMessage.senderId === currentUserId ? getReadReceiptIcon(updatedMessage) : ''}
-        `;
-    }
-
-    // Adiciona/remove a classe 'deleted'
-    bubble.classList.toggle('deleted', !!updatedMessage.isDeleted);
-    
-    // Esconde as opções se a mensagem foi apagada
-    const options = bubble.querySelector('.message-options');
-    if(options) {
-        options.classList.toggle('hidden', !!updatedMessage.isDeleted);
-    }
-}
-
-// NOVO: Atualiza o indicador de "digitando"
+// --- NOVO: Função para atualizar o indicador de "digitando" ---
 function updateTypingIndicator(typingUsers) {
     const indicator = document.getElementById('typing-indicator');
     if (!indicator) return;
-    
-    if (typingUsers.length > 0) {
-        indicator.textContent = `Digitando...`;
+
+    if (typingUsers.length === 0) {
+        indicator.textContent = '';
+        indicator.classList.add('hidden');
+    } else if (typingUsers.length === 1) {
+        indicator.textContent = `${typingUsers[0]} está digitando...`;
         indicator.classList.remove('hidden');
     } else {
-        indicator.classList.add('hidden');
+        indicator.textContent = `${typingUsers.length} pessoas estão digitando...`;
+        indicator.classList.remove('hidden');
     }
 }
 
 // --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
-
-// NOVO: Painel para editar mensagem
-function buildEditMessagePanel(messageId, currentText) {
-    return `
-        <div class="overlay-content">
-            <button class="close-button" onclick="toggleOverlay('edit-message-overlay', false)">&times;</button>
-            <h3>Editar Mensagem</h3>
-            <textarea id="edit-message-textarea">${currentText}</textarea>
-            <button id="save-edit-button" class="action-button" data-message-id="${messageId}">Salvar Alterações</button>
-        </div>
-    `;
-}
 
 function buildAddContactPanel() {
     return `
@@ -287,13 +268,30 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
+// --- NOVO: Painel para editar mensagem ---
+function buildEditMessagePanel(messageId, chatId, currentText) {
+    return `
+    <div class="overlay-content">
+        <button class="close-button" onclick="toggleOverlay('edit-message-overlay', false)">&times;</button>
+        <h3>Editar Mensagem</h3>
+        <textarea id="edit-message-textarea" class="message-input" rows="3">${currentText}</textarea>
+        <button id="save-edit-button" class="action-button" data-message-id="${messageId}" data-chat-id="${chatId}">Salvar Alterações</button>
+    </div>
+    `;
+}
+
+
+// --- FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
+
 async function buildIdentityPanel(userId) {
     const me = JSON.parse(localStorage.getItem('currentUser'));
     const isMyProfile = userId === me.id;
 
     const userRef = database.ref(`users/${userId}`);
     const snapshot = await userRef.once('value');
+    
     if (!snapshot.exists()) {
+        console.error("Usuário não encontrado com o ID:", userId);
         return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
     }
     const userData = snapshot.val();
@@ -303,7 +301,7 @@ async function buildIdentityPanel(userId) {
     if (userData.links) {
         linksHtml = Object.entries(userData.links).map(([key, value]) => `
             <div class="link-item">
-                <a href="${value.url}" target="_blank" rel="noopener noreferrer">
+                <a href="${value.url}" target="_blank">
                     <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${value.url}" alt="ícone">
                     <span>${value.url}</span>
                 </a>
@@ -349,7 +347,7 @@ async function buildIdentityPanel(userId) {
             <h4>Biografia</h4>
             ${isMyProfile 
                 ? `<textarea id="bio-textarea" placeholder="Conte um pouco sobre você...">${userData.bio || ''}</textarea><button id="save-bio-btn" class="action-button">Salvar Bio</button>` 
-                : `<p>${userData.bio || 'Nenhuma biografia definida.'}</p>`
+                : `<p>${convertMarkdownToHtml(userData.bio) || 'Nenhuma biografia definida.'}</p>`
             }
             
             <hr>
@@ -367,3 +365,16 @@ async function buildIdentityPanel(userId) {
     
     return panelHtml;
 }
+
+// --- NOVO: Função para notificações ---
+function showNotification(title, body) {
+    if (!('Notification' in window)) {
+        console.log("Este navegador não suporta notificações de desktop.");
+        return;
+    }
+
+    if (Notification.permission === "granted") {
+        new Notification(title, { body: body, icon: './favicon.ico' });
+    }
+}
+--- END OF FILE ui.js ---
