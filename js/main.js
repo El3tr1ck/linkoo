@@ -1,8 +1,19 @@
+--- START OF FILE main.js ---
+
 let activeChat = null;
-let messageObserver = null; // Para os recibos de leitura
+let typingTimeout = null; // --- NOVO ---
+let typingIndicatorRef = null; // --- NOVO ---
 
 async function setActiveChat(chatInfo) {
     activeChat = chatInfo;
+    
+    // --- NOVO: Para recibos de leitura de grupo ---
+    if (chatInfo.type === 'group') {
+        const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
+        if(groupSnapshot.exists()) {
+            activeChat.participants = groupSnapshot.val().participants;
+        }
+    }
     
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`contact-${chatInfo.id}`)?.classList.add('active');
@@ -52,38 +63,23 @@ async function setActiveChat(chatInfo) {
     }
     
     loadChatMessages(chatInfo.id);
+    markMessagesAsRead(chatInfo.id); // --- NOVO: Marca mensagens como lidas ao abrir ---
 
-    // --- OBSERVA MENSAGENS PARA MARCAR COMO LIDAS (RECIBOS DE LEITURA) ---
-    if (messageObserver) {
-        messageObserver.disconnect();
+    // --- NOVO: Inicia o listener de "digitando" ---
+    if (typingIndicatorRef) {
+        typingIndicatorRef.off();
     }
-    const messagesArea = document.getElementById('messages-area');
-    messageObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const bubble = entry.target;
-                const messageId = bubble.id.replace('message-', '');
-                // Marca como lida apenas se for uma mensagem recebida
-                if (bubble.classList.contains('received')) {
-                    markMessageAsRead(activeChat.id, messageId);
-                }
-                messageObserver.unobserve(bubble); // Para de observar após marcar para otimizar
+    typingIndicatorRef = database.ref(`typing_indicators/${chatInfo.id}`);
+    typingIndicatorRef.on('value', snapshot => {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        const typingUsers = [];
+        snapshot.forEach(child => {
+            if(child.key !== currentUser.id) {
+                typingUsers.push(child.val());
             }
         });
-    }, { threshold: 0.9 }); // 0.9 = 90% da mensagem precisa estar visível
-
-    // Observa as novas mensagens adicionadas à área e as passa para o IntersectionObserver
-    const messageAreaObserver = new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1 && node.classList.contains('message-bubble')) {
-                    messageObserver.observe(node);
-                }
-            });
-        });
+        updateTypingIndicator(typingUsers);
     });
-    messageAreaObserver.observe(messagesArea, { childList: true });
-
 
     document.getElementById('chat-conversation-screen').classList.remove('hidden');
     document.getElementById('chat-welcome-screen').classList.add('hidden');
@@ -116,22 +112,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica de Inicialização ---
 
-    // Captura o resultado do login Google após o redirecionamento
-    firebase.auth().getRedirectResult()
-        .then((result) => {
-            if (result && result.user) {
-                const email = result.user.email;
-                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                if (email && currentUser) {
-                    database.ref(`users/${currentUser.id}/googleEmail`).set(email)
-                        .then(() => {
-                            alert("Conta Google vinculada com sucesso!");
-                            showIdentityPanel(currentUser.id);
-                        })
-                        .catch((dbError) => console.error("Erro ao salvar o email no banco de dados:", dbError));
-                }
+    firebase.auth().getRedirectResult().then((result) => {
+        if (result && result.user) {
+            const email = result.user.email;
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            if (email && currentUser) {
+                database.ref(`users/${currentUser.id}/googleEmail`).set(email).then(() => {
+                    alert("Conta Google vinculada com sucesso!");
+                    showIdentityPanel(currentUser.id);
+                }).catch((dbError) => {
+                    console.error("Erro ao salvar o email no banco de dados:", dbError);
+                    alert("Sua conta foi autenticada pelo Google, mas houve um erro ao salvar a informação no seu perfil.");
+                });
             }
-        }).catch((error) => console.error("Erro no redirecionamento do Google Login:", error));
+        }
+    }).catch((error) => {
+        console.error("Erro no redirecionamento do Google Login:", error);
+        if (error.code === 'auth/account-exists-with-different-credential') {
+            alert("Erro: Já existe uma conta com este e-mail, mas usando um método de login diferente.");
+        } else {
+            alert("Ocorreu um erro ao tentar vincular a conta Google.");
+        }
+    });
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -139,9 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setupPresence(userData.id);
         showChatInterface();
         loadUserChats(userData.id);
-        
-        // Pede permissão para notificações após o login, se necessário
-        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        // --- NOVO: Pede permissão para notificações ---
+        if ('Notification' in window && Notification.permission !== 'denied') {
             Notification.requestPermission();
         }
     }
@@ -155,6 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeChatRef) {
             activeChatRef.off();
             activeChatRef = null;
+        }
+        // --- NOVO: Desliga o listener de "digitando" ---
+        if (typingIndicatorRef) {
+            typingIndicatorRef.off();
+            typingIndicatorRef = null;
+            updateTypingIndicator([]); // Limpa o indicador
         }
         activeChat = null;
         document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
@@ -198,75 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
-    // Limpa o título da aba e contador de notificações ao focar na janela
-    window.addEventListener('focus', () => {
-        if (originalTitle) {
-            document.title = originalTitle;
-        }
-        notificationCount = 0;
-    });
 
     // --- DELEGAÇÃO DE EVENTOS PARA ITENS DINÂMICOS ---
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         const target = e.target;
-        
-        // --- LÓGICA DO MENU DE OPÇÕES DA MENSAGEM ---
-        const optionsBtn = target.closest('.options-btn');
-        if (optionsBtn) {
-            e.stopPropagation(); // Impede que o clique feche o menu imediatamente
-            const messageId = optionsBtn.dataset.messageId;
-            document.querySelectorAll('.message-context-menu').forEach(menu => {
-                if(menu.id !== `menu-${messageId}`) menu.classList.add('hidden');
-            });
-            document.getElementById(`menu-${messageId}`).classList.toggle('hidden');
-            return; 
-        }
-
-        // Esconde todos os menus de mensagem se clicar fora
-        if (!target.closest('.message-context-menu')) {
-            document.querySelectorAll('.message-context-menu').forEach(menu => menu.classList.add('hidden'));
-        }
-        
-        if (target.closest('.delete-btn')) {
-            const menu = target.closest('.message-context-menu');
-            if (menu) {
-                const messageId = menu.id.replace('menu-', '');
-                if (confirm("Tem certeza que deseja apagar esta mensagem?")) {
-                    deleteMessage(activeChat.id, messageId);
-                }
-                menu.classList.add('hidden');
-            }
-        }
-
-        if (target.closest('.edit-btn')) {
-            const menu = target.closest('.message-context-menu');
-            if (menu) {
-                const optionsButton = menu.parentElement.querySelector('.options-btn');
-                const messageId = optionsButton.dataset.messageId;
-                const messageText = optionsButton.dataset.messageText;
-                
-                const overlay = document.getElementById('edit-message-overlay');
-                overlay.innerHTML = buildEditMessagePanel(messageId, messageText);
-                toggleOverlay('edit-message-overlay', true);
-                
-                menu.classList.add('hidden');
-            }
-        }
-
-        if (target.id === 'save-edit-button') {
-            const messageId = target.dataset.messageId;
-            const newText = document.getElementById('edit-message-textarea').value;
-            editMessage(activeChat.id, messageId, newText);
-            toggleOverlay('edit-message-overlay', false);
-        }
-        
-        // --- LÓGICA ORIGINAL RESTANTE ---
+        // Botão "Conversar" na busca
         if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
+        // Botão "Criar Grupo"
         if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
@@ -277,9 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
+        // Nomes clicáveis para abrir identidade
         if (target.classList.contains('clickable-name') && target.dataset.userid) {
             showIdentityPanel(target.dataset.userid);
         }
+        // Lógica do painel de identidade
         if(target.id === 'link-google-btn') linkGoogleAccount();
         if(target.id === 'save-bio-btn') {
             const bio = document.getElementById('bio-textarea').value;
@@ -295,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showIdentityPanel(me.id);
             }
         }
+        // Submeter avaliação
         if(target.id === 'submit-rating-btn' && !target.classList.contains('hidden')) {
             const rating = parseInt(target.dataset.rating, 10);
             const userId = target.parentElement.querySelector('.star-rating').dataset.userid;
@@ -302,24 +254,50 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(`Você avaliou com ${rating} estrelas!`);
             showIdentityPanel(userId);
         }
-    });
-    
-    // --- LÓGICA DAS ESTRELAS DE AVALIAÇÃO (sem alteração) ---
-    document.addEventListener('mouseover', e => { /* ... */ });
-    document.addEventListener('mouseout', e => { /* ... */ });
-    document.addEventListener('click', e => {
-        if (e.target.matches('.star-rating i')) {
-            const ratingContainer = e.target.parentElement;
-            const rating = parseInt(e.target.dataset.value, 10);
-            ratingContainer.dataset.selectedValue = rating;
-            const submitBtn = ratingContainer.parentElement.querySelector('#submit-rating-btn');
-            submitBtn.classList.remove('hidden');
-            submitBtn.dataset.rating = rating;
+
+        // --- NOVO: Lógica para menu de opções da mensagem ---
+        if (target.classList.contains('options-trigger')) {
+            const menu = target.nextElementSibling;
+            if (menu) menu.classList.toggle('hidden');
+        } else {
+             // Esconde todos os menus de opções abertos se clicar fora
+            document.querySelectorAll('.message-options .options-menu').forEach(menu => menu.classList.add('hidden'));
+        }
+
+        // --- NOVO: Lógica para botões de editar/apagar mensagem ---
+        if (target.classList.contains('delete-message-btn')) {
+            if (confirm('Tem certeza que deseja apagar esta mensagem para todos?')) {
+                const { messageId, chatId } = target.dataset;
+                deleteMessage(chatId, messageId);
+            }
+        }
+        if (target.classList.contains('edit-message-btn')) {
+            const { messageId, chatId } = target.dataset;
+            const messageRef = database.ref(`chats/${chatId}/${messageId}`);
+            const snapshot = await messageRef.once('value');
+            const messageData = snapshot.val();
+            if (messageData && messageData.text) {
+                const overlay = document.getElementById('edit-message-overlay');
+                overlay.innerHTML = buildEditMessagePanel(messageId, chatId, messageData.text);
+                toggleOverlay('edit-message-overlay', true);
+            }
+        }
+        if (target.id === 'save-edit-button') {
+            const { messageId, chatId } = target.dataset;
+            const newText = document.getElementById('edit-message-textarea').value;
+            if (newText.trim()) {
+                editMessage(chatId, messageId, newText);
+                toggleOverlay('edit-message-overlay', false);
+            }
         }
     });
+    
+    // Delegação de eventos para as estrelas (sem alterações)
+    document.addEventListener('mouseover', e => { if (e.target.matches('.star-rating i')) { const allStars = e.target.parentElement.querySelectorAll('i'); const hoverValue = parseInt(e.target.dataset.value, 10); allStars.forEach((star, index) => { star.classList.toggle('fa-solid', index < hoverValue); star.classList.toggle('fa-regular', index >= hoverValue); }); } });
+    document.addEventListener('mouseout', e => { if (e.target.matches('.star-rating, .star-rating *')) { const ratingContainer = e.target.closest('.star-rating'); const selectedValue = parseInt(ratingContainer.dataset.selectedValue || '0', 10); ratingContainer.querySelectorAll('i').forEach((star, index) => { star.classList.toggle('fa-solid', index < selectedValue); star.classList.toggle('fa-regular', index >= selectedValue); }); } });
+    document.addEventListener('click', e => { if (e.target.matches('.star-rating i')) { const ratingContainer = e.target.parentElement; const rating = parseInt(e.target.dataset.value, 10); ratingContainer.dataset.selectedValue = rating; const submitBtn = ratingContainer.parentElement.querySelector('#submit-rating-btn'); submitBtn.classList.remove('hidden'); submitBtn.dataset.rating = rating; } });
 
-
-    // --- LISTENERS DOS MENUS GERAIS (sem alteração) ---
+    // --- LISTENERS DOS MENUS ---
     chatOptionsButton.addEventListener('click', (e) => {
         e.stopPropagation();
         document.getElementById('chat-options-menu').classList.toggle('hidden');
@@ -329,11 +307,84 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeChat) return;
         const button = e.target.closest('button');
         if (!button) return;
+
         const action = button.id;
         switch(action) {
-            case 'block-user-button': /* ... */ break;
-            case 'delete-chat-button': /* ... */ break;
-            case 'leave-group-button': /* ... */ break;
+            case 'block-user-button':
+                checkIfBlocked(activeChat.withUserId).then(isBlocked => {
+                    if (isBlocked) {
+                        unblockUser(activeChat.withUserId);
+                        button.innerHTML = `<i class="fa-solid fa-ban"></i> Bloquear`;
+                    } else {
+                        blockUser(activeChat.withUserId);
+                        button.innerHTML = `<i class="fa-solid fa-ban"></i> Desbloquear`;
+                    }
+                });
+                break;
+            case 'delete-chat-button':
+                if (confirm("Tem certeza que deseja apagar esta conversa?")) {
+                    deleteConversation(activeChat.id);
+                    backToContactsButton.click();
+                }
+                break;
+            case 'leave-group-button':
+                 if (confirm("Tem certeza que deseja sair deste grupo?")) {
+                    leaveGroup(activeChat.id);
+                    backToContactsButton.click();
+                }
+                break;
         }
         document.getElementById('chat-options-menu').classList.add('hidden');
-    })
+    });
+
+    sendMessageButton.addEventListener('click', () => {
+        const text = messageInput.value.trim();
+        if (text && activeChat) {
+            sendTextMessage(activeChat.id, text, activeChat.type);
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+        }
+    });
+    
+    messageInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessageButton.click();
+        }
+    });
+
+    // --- ALTERADO: Adicionado gatilho de "digitando" ---
+    messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = (messageInput.scrollHeight) + 'px';
+        
+        if (activeChat) {
+            // Informa que está digitando
+            setTypingStatus(activeChat.id, true);
+            
+            // Limpa o timeout anterior e define um novo para parar de digitar
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                setTypingStatus(activeChat.id, false);
+            }, 3000); // 3 segundos de inatividade
+        }
+    });
+    
+    fileMenuButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('file-options').classList.toggle('hidden');
+    });
+
+    sendPhotoButton.addEventListener('click', () => {
+        if (activeChat) handlePhotoUpload(activeChat.id);
+        document.getElementById('file-options').classList.add('hidden');
+    });
+    
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.message-input-area') && !e.target.closest('.chat-header-options')) {
+            document.getElementById('file-options').classList.add('hidden');
+            document.getElementById('chat-options-menu').classList.add('hidden');
+        }
+    });
+});
+--- END OF FILE main.js ---
