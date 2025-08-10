@@ -1,3 +1,5 @@
+// chat.js - COMPLETO E CORRIGIDO
+
 let activeChatRef = null;
 let typingTimeout = null;
 
@@ -26,9 +28,14 @@ function startChatWith(otherUser) {
     const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id, unreadCount: 0 };
     const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id, unreadCount: 0 };
 
-    database.ref(`user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
-    database.ref(`user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
+    const updates = {};
+    updates[`/user_chats/${currentUser.id}/${chatId}`] = chatDataForCurrentUser;
+    updates[`/user_chats/${otherUser.id}/${chatId}`] = chatDataForOtherUser;
+
+    database.ref().update(updates)
+        .catch(error => console.error("Falha ao iniciar a conversa:", error));
 }
+
 
 function loadUserChats(userId) {
     const userChatsRef = database.ref(`user_chats/${userId}`);
@@ -252,7 +259,41 @@ function deleteConversation(chatId) {
 }
 
 async function deleteCurrentUserAccount() {
-    // Esta função precisa de uma lógica mais robusta para lidar com a exclusão segura
+    const authUser = firebase.auth().currentUser;
+    const localUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    if (!authUser || !localUser) {
+        alert("Erro: Não foi possível identificar o usuário para apagar.");
+        return;
+    }
+
+    try {
+        console.log("Iniciando exclusão...");
+        
+        const updates = {};
+        updates[`/users/${localUser.id}`] = null;
+        updates[`/user_chats/${localUser.id}`] = null;
+        updates[`/blocked_users/${localUser.id}`] = null;
+        // Adicione aqui outros caminhos que precisam ser limpos, como grupos.
+        
+        await database.ref().update(updates);
+        console.log("Dados do Realtime Database apagados.");
+
+        await authUser.delete();
+        console.log("Conta de autenticação do Firebase apagada.");
+
+        localStorage.clear();
+        alert("Sua conta foi apagada com sucesso.");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("Erro ao apagar a conta:", error);
+        if (error.code === 'auth/requires-recent-login') {
+            alert("Esta é uma operação sensível e requer que você tenha feito login recentemente. Por favor, deslogue e logue novamente para apagar sua conta.");
+        } else {
+            alert("Ocorreu um erro ao apagar sua conta: " + error.message);
+        }
+    }
 }
 
 // --- FUNÇÕES DE IDENTIDADE ---
@@ -266,10 +307,8 @@ function linkGoogleAccount() {
 
     const provider = new firebase.auth.GoogleAuthProvider();
     
-    // Tenta o método Pop-up primeiro.
     authUser.linkWithPopup(provider)
         .then((result) => {
-            // Se o Pop-up funcionar, o resultado é processado aqui mesmo.
             console.log("Sucesso no Pop-up! Vinculando dados...");
             const email = result.user.email;
             const localUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -288,9 +327,7 @@ function linkGoogleAccount() {
             }
         })
         .catch((error) => {
-            // Se o Pop-up falhar, verificamos o motivo.
             if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
-                // Se foi bloqueado ou fechado, usamos o Plano B: Redirect.
                 console.warn("Pop-up bloqueado. Tentando o método de redirecionamento como fallback.");
                 authUser.linkWithRedirect(provider);
             } else if (error.code === 'auth/credential-already-in-use') {
