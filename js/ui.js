@@ -1,4 +1,23 @@
-// --- START OF FILE ui.js --- (CORRIGIDO)
+// --- LÓGICA DE NOTIFICAÇÕES GLOBAIS ---
+let originalTitle = document.title;
+let notificationCount = 0;
+
+function showNotification(title, body) {
+    // Atualiza o título da aba
+    notificationCount++;
+    document.title = `(${notificationCount}) ${originalTitle}`;
+
+    // Mostra notificação do navegador se a permissão foi concedida
+    if (Notification.permission === 'granted') {
+        new Notification(title, {
+            body: body,
+            icon: '/favicon.ico' // Opcional: adicione um ícone (precisa existir no seu projeto)
+        });
+    }
+}
+
+
+// --- FUNÇÕES DE EXIBIÇÃO DA INTERFACE ---
 
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
@@ -6,7 +25,6 @@ function showLoginScreen() {
 }
 
 function showChatInterface() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
@@ -23,7 +41,7 @@ function toggleOverlay(overlayId, show) {
         overlay.classList.remove('hidden');
     } else {
         overlay.classList.add('hidden');
-        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar
+        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar para evitar dados antigos
     }
 }
 
@@ -61,34 +79,138 @@ function updateContactStatus(userId, status) {
     if (statusDot) {
         statusDot.innerHTML = `<i class="fa-solid fa-circle"></i>`;
         statusDot.classList.toggle('online', status === 'online');
+        statusDot.classList.toggle('offline', status !== 'online');
     }
 }
 
 function displayMessage(message, currentUserId) {
     const messagesArea = document.getElementById('messages-area');
+    const isScrolledToBottom = messagesArea.scrollHeight - messagesArea.clientHeight <= messagesArea.scrollTop + 1;
+
     const bubble = document.createElement('div');
+    bubble.id = `message-${message.id}`;
     bubble.classList.add('message-bubble');
     bubble.classList.add(message.senderId === currentUserId ? 'sent' : 'received');
+    if (message.isDeleted) {
+        bubble.classList.add('deleted');
+    }
 
-    let content = '';
-    if (message.text) {
-        content = convertMarkdownToHtml(message.text);
-    } else if (message.imageUrl) {
-        content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
+    let contentHtml = '';
+    if (message.imageUrl) {
+        contentHtml = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
+    } else {
+        contentHtml = convertMarkdownToHtml(message.text);
     }
     
+    let bubbleInnerHtml = '';
     if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        // Adiciona o nome do remetente clicável para grupos
-        bubble.innerHTML = `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
-    } else {
-        bubble.innerHTML = content;
+        bubbleInnerHtml += `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>`;
     }
+    bubbleInnerHtml += `<div class="message-content">${contentHtml}</div>`;
+
+    const metadataHtml = `
+        <div class="message-metadata">
+            ${message.edited ? '<span class="edited-indicator">(editado)</span>' : ''}
+            ${message.senderId === currentUserId ? getReadReceiptIcon(message) : ''}
+        </div>
+    `;
+
+    const optionsHtml = (message.senderId === currentUserId && !message.isDeleted) ? `
+        <div class="message-options">
+            <button class="icon-button options-btn" data-message-id="${message.id}" data-message-text="${message.text || ''}"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+            <div class="context-menu message-context-menu hidden" id="menu-${message.id}">
+                <button class="edit-btn"><i class="fa-solid fa-pencil"></i> Editar</button>
+                <button class="delete-btn danger"><i class="fa-solid fa-trash"></i> Apagar</button>
+            </div>
+        </div>
+    ` : '';
+    
+    bubble.innerHTML = bubbleInnerHtml + metadataHtml + optionsHtml;
     
     messagesArea.appendChild(bubble);
-    messagesArea.scrollTop = messagesArea.scrollHeight;
+    
+    if (isScrolledToBottom) {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+}
+
+// NOVO: Função para obter o ícone de recibo de leitura correto
+function getReadReceiptIcon(message) {
+    if (!activeChat) return '';
+    const readByCount = message.readBy ? Object.keys(message.readBy).length : 0;
+    
+    let totalParticipants = 0;
+    if (activeChat.type === 'direct') {
+        totalParticipants = 2;
+    } else if (activeChat.participants) {
+        totalParticipants = Object.keys(activeChat.participants).length;
+    }
+    
+    const isReadByAll = (activeChat.type === 'direct') ? readByCount > 1 : readByCount >= totalParticipants;
+    
+    if (isReadByAll) {
+        return `<span class="read-receipt"><i class="fa-solid fa-check-double read"></i></span>`;
+    } else {
+        return `<span class="read-receipt"><i class="fa-solid fa-check"></i></span>`;
+    }
+}
+
+// NOVO: Atualiza uma mensagem existente na tela (para edições, recibos de leitura)
+function updateDisplayedMessage(updatedMessage) {
+    const bubble = document.getElementById(`message-${updatedMessage.id}`);
+    if (!bubble) return;
+
+    // Atualiza o conteúdo da mensagem
+    if (bubble.querySelector('.message-content')) {
+        bubble.querySelector('.message-content').innerHTML = updatedMessage.isDeleted ? 'Esta mensagem foi apagada.' : convertMarkdownToHtml(updatedMessage.text);
+    }
+
+    // Atualiza o estado de "editado" e o recibo de leitura
+    const metadata = bubble.querySelector('.message-metadata');
+    if (metadata) {
+        const currentUserId = JSON.parse(localStorage.getItem('currentUser')).id;
+        metadata.innerHTML = `
+            ${updatedMessage.edited ? '<span class="edited-indicator">(editado)</span>' : ''}
+            ${updatedMessage.senderId === currentUserId ? getReadReceiptIcon(updatedMessage) : ''}
+        `;
+    }
+
+    // Adiciona/remove a classe 'deleted'
+    bubble.classList.toggle('deleted', !!updatedMessage.isDeleted);
+    
+    // Esconde as opções se a mensagem foi apagada
+    const options = bubble.querySelector('.message-options');
+    if(options) {
+        options.classList.toggle('hidden', !!updatedMessage.isDeleted);
+    }
+}
+
+// NOVO: Atualiza o indicador de "digitando"
+function updateTypingIndicator(typingUsers) {
+    const indicator = document.getElementById('typing-indicator');
+    if (!indicator) return;
+    
+    if (typingUsers.length > 0) {
+        indicator.textContent = `Digitando...`;
+        indicator.classList.remove('hidden');
+    } else {
+        indicator.classList.add('hidden');
+    }
 }
 
 // --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
+
+// NOVO: Painel para editar mensagem
+function buildEditMessagePanel(messageId, currentText) {
+    return `
+        <div class="overlay-content">
+            <button class="close-button" onclick="toggleOverlay('edit-message-overlay', false)">&times;</button>
+            <h3>Editar Mensagem</h3>
+            <textarea id="edit-message-textarea">${currentText}</textarea>
+            <button id="save-edit-button" class="action-button" data-message-id="${messageId}">Salvar Alterações</button>
+        </div>
+    `;
+}
 
 function buildAddContactPanel() {
     return `
@@ -124,7 +246,6 @@ function displaySearchResults(users) {
 }
 
 async function buildNewGroupPanelContent() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
     const allUsersSnapshot = await database.ref('users').once('value');
@@ -166,19 +287,13 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
-// --- NOVA FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
-
 async function buildIdentityPanel(userId) {
-    // ALTERADO: de sessionStorage para localStorage - ESTA É A CORREÇÃO PRINCIPAL
     const me = JSON.parse(localStorage.getItem('currentUser'));
     const isMyProfile = userId === me.id;
 
     const userRef = database.ref(`users/${userId}`);
     const snapshot = await userRef.once('value');
-    
-    // Adicionada uma verificação de segurança, como sugerido anteriormente
     if (!snapshot.exists()) {
-        console.error("Usuário não encontrado com o ID:", userId);
         return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
     }
     const userData = snapshot.val();
@@ -188,7 +303,7 @@ async function buildIdentityPanel(userId) {
     if (userData.links) {
         linksHtml = Object.entries(userData.links).map(([key, value]) => `
             <div class="link-item">
-                <a href="${value.url}" target="_blank">
+                <a href="${value.url}" target="_blank" rel="noopener noreferrer">
                     <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${value.url}" alt="ícone">
                     <span>${value.url}</span>
                 </a>
@@ -197,7 +312,6 @@ async function buildIdentityPanel(userId) {
         `).join('');
     }
 
-    // Lógica de Avaliação
     let ratingHtml = '';
     const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
     const totalRatings = userData.ratings ? userData.ratings.count : 0;
