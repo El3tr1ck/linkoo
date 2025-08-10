@@ -1,4 +1,5 @@
 let activeChatRef = null;
+let typingTimeout = null;
 
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
 
@@ -22,8 +23,8 @@ function startChatWith(otherUser) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
     
-    const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id };
-    const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id };
+    const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id, unreadCount: 0 };
+    const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id, unreadCount: 0 };
 
     database.ref(`user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
     database.ref(`user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
@@ -31,9 +32,14 @@ function startChatWith(otherUser) {
 
 function loadUserChats(userId) {
     const userChatsRef = database.ref(`user_chats/${userId}`);
+    // ATUALIZADO: para ouvir modificações também (para o contador de não lidas)
     userChatsRef.on('child_added', snapshot => {
         const chatInfo = { ...snapshot.val(), id: snapshot.key };
         addUserToContactsList(chatInfo);
+    });
+     userChatsRef.on('child_changed', snapshot => {
+        const chatInfo = { ...snapshot.val(), id: snapshot.key };
+        updateContactUnreadCount(chatInfo.id, chatInfo.unreadCount);
     });
     userChatsRef.on('child_removed', snapshot => {
         removeContactFromList(snapshot.key);
@@ -63,10 +69,21 @@ function loadChatMessages(chatId) {
     activeChatRef = messagesRef;
 
     activeChatRef.on('child_added', (snapshot) => {
-        const message = snapshot.val();
+        const message = { ...snapshot.val(), id: snapshot.key };
         displayMessage(message, currentUser.id);
+        // NOVO: Atualiza o status da mensagem para 'lido'
+        if (message.senderId !== currentUser.id && message.status !== 'read') {
+            database.ref(`chats/${chatId}/${message.id}`).update({ status: 'read' });
+        }
+    });
+
+    // NOVO: Listener para edição e status da mensagem
+    activeChatRef.on('child_changed', (snapshot) => {
+        const message = { ...snapshot.val(), id: snapshot.key };
+        updateMessageInUI(message);
     });
 }
+
 
 // --- FUNÇÕES DE ENVIO DE MENSAGEM ---
 
@@ -84,9 +101,15 @@ async function sendTextMessage(chatId, text, chatType) {
         senderId: currentUser.id, 
         senderName: currentUser.username, 
         text: text, 
-        timestamp: firebase.database.ServerValue.TIMESTAMP 
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        status: 'sent', // NOVO: Status inicial
+        isEdited: false // NOVO: Flag de edição
     };
-    database.ref('chats/' + chatId).push(message);
+    const messageRef = database.ref('chats/' + chatId).push();
+    messageRef.set(message);
+
+    // NOVO: Incrementa o contador de não lidas do outro usuário
+    incrementUnreadCount(chatId, currentUser.id);
 }
 
 function handlePhotoUpload(chatId) {
@@ -114,9 +137,90 @@ function sendImageMessage(chatId, base64String) {
     const message = {
         senderId: currentUser.id,
         imageUrl: base64String,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        status: 'sent', // NOVO: Status inicial
+        isEdited: false
     };
     database.ref('chats/' + chatId).push(message);
+    // NOVO: Incrementa o contador de não lidas
+    incrementUnreadCount(chatId, currentUser.id);
+}
+
+// --- NOVAS FUNÇÕES: EDIÇÃO E EXCLUSÃO DE MENSAGENS ---
+function editMessage(chatId, messageId, newText) {
+    const messageRef = database.ref(`chats/${chatId}/${messageId}`);
+    messageRef.update({
+        text: newText,
+        isEdited: true
+    });
+}
+
+function deleteMessage(chatId, messageId) {
+    const messageRef = database.ref(`chats/${chatId}/${messageId}`);
+    messageRef.update({
+        text: '🗑️ Mensagem apagada',
+        imageUrl: null, // Remove a imagem se houver
+        isDeleted: true // Flag para tratar na UI
+    });
+}
+
+
+// --- NOVAS FUNÇÕES: RECIBOS E CONTADOR ---
+function incrementUnreadCount(chatId, senderId) {
+    const userChatsRef = database.ref('user_chats');
+    // Para chats diretos
+    const participantIds = chatId.split('_');
+    participantIds.forEach(userId => {
+        if (userId !== senderId) {
+            const userChatRef = userChatsRef.child(userId).child(chatId);
+            userChatRef.child('unreadCount').transaction(count => (count || 0) + 1);
+        }
+    });
+    // Para grupos
+    database.ref(`groups/${chatId}/participants`).once('value', snapshot => {
+        if (!snapshot.exists()) return;
+        snapshot.forEach(participantSnap => {
+            const userId = participantSnap.key;
+            if (userId !== senderId) {
+                const userChatRef = userChatsRef.child(userId).child(chatId);
+                userChatRef.child('unreadCount').transaction(count => (count || 0) + 1);
+            }
+        });
+    });
+}
+
+function resetUnreadCount(chatId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`user_chats/${currentUser.id}/${chatId}/unreadCount`).set(0);
+}
+
+
+// --- NOVAS FUNÇÕES: INDICADOR DE "DIGITANDO" ---
+function setTypingStatus(chatId, isTyping) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const typingRef = database.ref(`typing_status/${chatId}/${currentUser.id}`);
+    if (isTyping) {
+        typingRef.set(currentUser.username);
+        // Remove o status após um tempo para evitar "presos"
+        setTimeout(() => typingRef.remove(), 2000); 
+    } else {
+        typingRef.remove();
+    }
+}
+
+function listenForTypingStatus(chatId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const typingRef = database.ref(`typing_status/${chatId}`);
+    
+    typingRef.on('value', snapshot => {
+        const typingUsers = [];
+        snapshot.forEach(childSnap => {
+            if(childSnap.key !== currentUser.id){
+                typingUsers.push(childSnap.val());
+            }
+        });
+        updateTypingIndicator(typingUsers);
+    });
 }
 
 // --- FUNÇÕES DE GRUPO ---
@@ -137,7 +241,7 @@ function createGroup(groupName, participantIds) {
 
     database.ref('groups/' + groupId).set(groupData);
 
-    const chatData = { type: 'group', groupName: groupName };
+    const chatData = { type: 'group', groupName: groupName, unreadCount: 0 };
     Object.keys(participants).forEach(userId => {
         database.ref(`user_chats/${userId}/${groupId}`).set(chatData);
     });
@@ -194,13 +298,10 @@ async function deleteCurrentUserAccount() {
     window.location.reload();
 }
 
-// --- NOVAS FUNÇÕES DE IDENTIDADE ---
+// --- FUNÇÕES DE IDENTIDADE ---
 
-// ALTERADO: A função agora usa signInWithRedirect para maior compatibilidade com celulares.
 function linkGoogleAccount() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Inicia o processo de login redirecionando para a página do Google.
-    // O navegador sairá do seu site e voltará depois.
     firebase.auth().signInWithRedirect(provider);
 }
 
@@ -224,7 +325,6 @@ function submitUserRating(ratedUserId, rating) {
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
 
-    // Usa uma transação para garantir que a soma e a contagem sejam atualizadas atomicamente
     ratingRef.transaction((currentRatings) => {
         if (currentRatings === null) {
             return { sum: rating, count: 1 };
@@ -233,7 +333,7 @@ function submitUserRating(ratedUserId, rating) {
         }
     });
 
-    ratedByRef.set(true); // Marca que o usuário atual já avaliou
+    ratedByRef.set(true);
 }
 
 function convertMarkdownToHtml(text) {
