@@ -1,5 +1,3 @@
---- START OF FILE auth.js ---
-
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
@@ -57,4 +55,3 @@ function setupPresence(userId) {
         }
     });
 }
---- END OF FILE auth.js ---
