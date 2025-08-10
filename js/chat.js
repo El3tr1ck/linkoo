@@ -1,9 +1,11 @@
+--- START OF FILE chat.js ---
+
 let activeChatRef = null;
 
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
 
 function searchUsers(query) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const usersRef = database.ref('users');
     
@@ -20,7 +22,7 @@ function searchUsers(query) {
 }
 
 function startChatWith(otherUser) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
     
@@ -59,7 +61,7 @@ function loadChatMessages(chatId) {
 
     const messagesArea = document.getElementById('messages-area');
     messagesArea.innerHTML = '';
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
     const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
@@ -74,7 +76,7 @@ function loadChatMessages(chatId) {
 // --- FUNÇÕES DE ENVIO DE MENSAGEM ---
 
 async function sendTextMessage(chatId, text, chatType) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (chatType === 'direct') {
         const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
@@ -114,7 +116,7 @@ function handlePhotoUpload(chatId) {
 }
 
 function sendImageMessage(chatId, base64String) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const message = {
         senderId: currentUser.id,
@@ -127,7 +129,7 @@ function sendImageMessage(chatId, base64String) {
 // --- FUNÇÕES DE GRUPO ---
 
 function createGroup(groupName, participantIds) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const groupId = database.ref('groups').push().key;
 
@@ -150,7 +152,7 @@ function createGroup(groupName, participantIds) {
 }
 
 function leaveGroup(groupId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
     database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
@@ -159,32 +161,32 @@ function leaveGroup(groupId) {
 // --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
 
 function blockUser(otherUserId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
 }
 
 function unblockUser(otherUserId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).remove();
 }
 
 async function checkIfBlocked(otherUserId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const snapshot = await database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).once('value');
     return snapshot.exists();
 }
 
 function deleteConversation(chatId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
 }
 
 async function deleteCurrentUserAccount() {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) return;
 
@@ -202,7 +204,7 @@ async function deleteCurrentUserAccount() {
     await database.ref('user_chats/' + currentUser.id).remove();
     await database.ref('blocked_users/' + currentUser.id).remove();
 
-    // CORREÇÃO: Limpando localStorage
+    // ALTERADO: de sessionStorage para localStorage para limpar os dados persistentes
     localStorage.clear();
     window.location.reload();
 }
@@ -214,7 +216,7 @@ async function linkGoogleAccount() {
     try {
         const result = await firebase.auth().signInWithPopup(provider);
         const email = result.user.email;
-        // CORREÇÃO: Usando localStorage
+        // ALTERADO: de sessionStorage para localStorage
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
         if (email && currentUser) {
             await database.ref(`users/${currentUser.id}/googleEmail`).set(email);
@@ -228,29 +230,30 @@ async function linkGoogleAccount() {
 }
 
 function updateUserBio(bio) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/bio`).set(bio);
 }
 
 function addUserLink(url) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links`).push({ url: url });
 }
 
 function removeUserLink(linkId) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
 }
 
 function submitUserRating(ratedUserId, rating) {
-    // CORREÇÃO: Usando localStorage
+    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
 
+    // Usa uma transação para garantir que a soma e a contagem sejam atualizadas atomicamente
     ratingRef.transaction((currentRatings) => {
         if (currentRatings === null) {
             return { sum: rating, count: 1 };
@@ -259,7 +262,7 @@ function submitUserRating(ratedUserId, rating) {
         }
     });
 
-    ratedByRef.set(true);
+    ratedByRef.set(true); // Marca que o usuário atual já avaliou
 }
 
 function convertMarkdownToHtml(text) {
@@ -268,3 +271,4 @@ function convertMarkdownToHtml(text) {
     const sanitizedHtml = DOMPurify.sanitize(rawHtml);
     return sanitizedHtml;
 }
+--- END OF FILE chat.js ---
