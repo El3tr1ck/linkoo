@@ -1,4 +1,5 @@
 let activeChat = null;
+let typingTimer = null; // Timer para o status "digitando"
 
 async function setActiveChat(chatInfo) {
     activeChat = chatInfo;
@@ -20,6 +21,7 @@ async function setActiveChat(chatInfo) {
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.innerHTML = chatInfo.withUsername;
         chatHeaderDetails.innerHTML = chatInfo.withUserId;
+        chatHeaderDetails.dataset.originalText = chatInfo.withUserId;
         chatHeaderDetails.onclick = null;
         chatHeaderDetails.style.cursor = 'default';
         
@@ -40,8 +42,9 @@ async function setActiveChat(chatInfo) {
         
         const participants = Object.keys(groupData.participants).map(id => allUsers ? allUsers[id] : null).filter(Boolean);
         const participantNames = participants.map(p => p.username).join(', ');
-
-        chatHeaderDetails.innerHTML = participantNames.substring(0, 50) + (participantNames.length > 50 ? '...' : '');
+        const detailsText = participantNames.substring(0, 50) + (participantNames.length > 50 ? '...' : '');
+        chatHeaderDetails.innerHTML = detailsText;
+        chatHeaderDetails.dataset.originalText = detailsText;
         chatHeaderDetails.classList.add('clickable');
         chatHeaderDetails.onclick = () => {
             toggleOverlay('participants-overlay', true);
@@ -51,6 +54,8 @@ async function setActiveChat(chatInfo) {
     }
     
     loadChatMessages(chatInfo.id);
+    resetUnreadCount(chatInfo.id); // NOVO: Zera o contador ao abrir
+    listenForTypingStatus(chatInfo.id); // NOVO: Ouve o status de digitação
 
     document.getElementById('chat-conversation-screen').classList.remove('hidden');
     document.getElementById('chat-welcome-screen').classList.add('hidden');
@@ -80,26 +85,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteAccountButton = document.getElementById('delete-account-button');
     const backToContactsButton = document.getElementById('back-to-contacts-button');
     const identityButton = document.getElementById('identity-button');
+    const messagesArea = document.getElementById('messages-area');
 
     // --- Lógica de Inicialização ---
 
-    // =========================================================================
-    // NOVO BLOCO: CAPTURA O RESULTADO DO LOGIN GOOGLE APÓS O REDIRECIONAMENTO
-    // Este código verifica se o usuário está voltando da página do Google.
     firebase.auth().getRedirectResult()
         .then((result) => {
-            // Se 'result.user' existir, o login foi bem-sucedido.
             if (result && result.user) {
                 const email = result.user.email;
                 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-
-                // Verifica se temos um email do Google e um usuário logado no nosso app
                 if (email && currentUser) {
-                    // Vincula a conta Google ao perfil do usuário no nosso banco de dados
                     database.ref(`users/${currentUser.id}/googleEmail`).set(email)
                         .then(() => {
                             alert("Conta Google vinculada com sucesso!");
-                            // Opcional: recarregar o painel de identidade se ele estava aberto
                             showIdentityPanel(currentUser.id);
                         })
                         .catch((dbError) => {
@@ -109,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }).catch((error) => {
-            // Lida com erros comuns do redirecionamento
             console.error("Erro no redirecionamento do Google Login:", error);
             if (error.code === 'auth/account-exists-with-different-credential') {
                 alert("Erro: Já existe uma conta com este e-mail, mas usando um método de login diferente.");
@@ -117,8 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Ocorreu um erro ao tentar vincular a conta Google.");
             }
         });
-    // FIM DO NOVO BLOCO
-    // =========================================================================
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -184,13 +179,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DELEGAÇÃO DE EVENTOS PARA ITENS DINÂMICOS ---
     document.addEventListener('click', (e) => {
         const target = e.target;
-        // Botão "Conversar" na busca
         if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
-        // Botão "Criar Grupo"
         if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
@@ -201,11 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
-        // Nomes clicáveis para abrir identidade
         if (target.classList.contains('clickable-name') && target.dataset.userid) {
             showIdentityPanel(target.dataset.userid);
         }
-        // Lógica do painel de identidade
         if(target.id === 'link-google-btn') linkGoogleAccount();
         if(target.id === 'save-bio-btn') {
             const bio = document.getElementById('bio-textarea').value;
@@ -218,20 +209,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
                 const me = JSON.parse(localStorage.getItem('currentUser'));
-                showIdentityPanel(me.id); // Recarrega o painel
+                showIdentityPanel(me.id);
             }
         }
-        // Submeter avaliação
         if(target.id === 'submit-rating-btn' && !target.classList.contains('hidden')) {
             const rating = parseInt(target.dataset.rating, 10);
             const userId = target.parentElement.querySelector('.star-rating').dataset.userid;
             submitUserRating(userId, rating);
             alert(`Você avaliou com ${rating} estrelas!`);
-            showIdentityPanel(userId); // Recarrega para mostrar que já foi avaliado
+            showIdentityPanel(userId);
         }
     });
     
-    // Delegação de eventos para as estrelas
     document.addEventListener('mouseover', e => {
         if (e.target.matches('.star-rating i')) {
             const allStars = e.target.parentElement.querySelectorAll('i');
@@ -310,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sendTextMessage(activeChat.id, text, activeChat.type);
             messageInput.value = '';
             messageInput.style.height = 'auto';
+            setTypingStatus(activeChat.id, false); // Para de digitar ao enviar
         }
     });
     
@@ -317,6 +307,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessageButton.click();
+        } else if (activeChat) {
+            // NOVO: Lógica de "digitando"
+            clearTimeout(typingTimer);
+            setTypingStatus(activeChat.id, true);
+            typingTimer = setTimeout(() => {
+                setTypingStatus(activeChat.id, false);
+            }, 1500); // Para de digitar se parar por 1.5s
         }
     });
 
@@ -336,9 +333,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.message-input-area') && !e.target.closest('.chat-header-options')) {
+        if (!e.target.closest('.message-input-area') && !e.target.closest('.chat-header-options') && !e.target.closest('#message-context-menu')) {
             document.getElementById('file-options').classList.add('hidden');
             document.getElementById('chat-options-menu').classList.add('hidden');
+            document.getElementById('message-context-menu').classList.add('hidden');
         }
+    });
+
+    // NOVO: Listener para menu de contexto da mensagem (editar/apagar)
+    messagesArea.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const bubble = e.target.closest('.message-bubble.sent');
+        if (!bubble || bubble.querySelector('.deleted-text')) return; // Apenas em mensagens enviadas e não apagadas
+
+        const menu = document.getElementById('message-context-menu');
+        menu.classList.remove('hidden');
+        menu.style.top = `${e.clientY}px`;
+        menu.style.left = `${e.clientX}px`;
+
+        const messageId = bubble.id.replace('msg-', '');
+        menu.querySelector('#edit-message-btn').onclick = () => {
+            menu.classList.add('hidden');
+            const currentText = bubble.querySelector('.message-content').textContent;
+            const newText = prompt('Edite sua mensagem:', currentText);
+            if (newText && newText.trim() !== currentText) {
+                editMessage(activeChat.id, messageId, newText.trim());
+            }
+        };
+
+        menu.querySelector('#delete-message-btn').onclick = () => {
+             menu.classList.add('hidden');
+             if (confirm('Tem certeza que deseja apagar esta mensagem para todos?')) {
+                deleteMessage(activeChat.id, messageId);
+             }
+        };
     });
 });
