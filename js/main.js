@@ -1,14 +1,10 @@
 let activeChat = null;
-let typingTimer = null; // Timer para o status "digitando"
-let currentUser = null; // Variável global para guardar os dados do usuário logado
+let typingTimer = null;
+let currentUser = null;
 
-// Função para inicializar a UI e os listeners após o login ser confirmado
 function initializeAppForUser(user) {
-    // Busca os dados do perfil no DB, caso seja necessário no futuro
-    // Por agora, confiamos no localStorage que é definido no login
     const localUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!localUser) return;
-
     setupPresence(localUser.id);
     showChatInterface();
     loadUserChats(localUser.id);
@@ -16,43 +12,31 @@ function initializeAppForUser(user) {
 
 async function setActiveChat(chatInfo) {
     activeChat = chatInfo;
-    
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`contact-${chatInfo.id}`)?.classList.add('active');
-
     const chatHeaderUsername = document.getElementById('chat-header-username');
     const chatHeaderDetails = document.getElementById('chat-header-details');
     const optionsMenu = document.getElementById('chat-options-menu');
-    
     optionsMenu.innerHTML = '';
-    
     chatHeaderUsername.dataset.userid = '';
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.dataset.userid = chatInfo.withUserId;
     }
-    
     if (chatInfo.type === 'direct') {
         chatHeaderUsername.innerHTML = chatInfo.withUsername;
         chatHeaderDetails.innerHTML = chatInfo.withUserId;
         chatHeaderDetails.dataset.originalText = chatInfo.withUserId;
         chatHeaderDetails.onclick = null;
         chatHeaderDetails.style.cursor = 'default';
-        
         const isBlocked = await checkIfBlocked(chatInfo.withUserId);
-        optionsMenu.innerHTML = `
-            <button id="block-user-button"><i class="fa-solid fa-ban"></i> ${isBlocked ? 'Desbloquear' : 'Bloquear'}</button>
-            <button id="delete-chat-button" class="danger"><i class="fa-solid fa-trash"></i> Apagar Conversa</button>
-        `;
+        optionsMenu.innerHTML = `<button id="block-user-button"><i class="fa-solid fa-ban"></i> ${isBlocked ? 'Desbloquear' : 'Bloquear'}</button><button id="delete-chat-button" class="danger"><i class="fa-solid fa-trash"></i> Apagar Conversa</button>`;
     } else if (chatInfo.type === 'group') {
         chatHeaderUsername.innerHTML = convertMarkdownToHtml(chatInfo.groupName);
-        
         const groupSnapshot = await database.ref(`groups/${chatInfo.id}`).once('value');
         if (!groupSnapshot.exists()) return;
         const groupData = groupSnapshot.val();
-        
         const userSnapshot = await database.ref('users').once('value');
         const allUsers = userSnapshot.val();
-        
         const participants = Object.keys(groupData.participants).map(id => allUsers ? allUsers[id] : null).filter(Boolean);
         const participantNames = participants.map(p => p.username).join(', ');
         const detailsText = participantNames.substring(0, 50) + (participantNames.length > 50 ? '...' : '');
@@ -65,15 +49,12 @@ async function setActiveChat(chatInfo) {
         };
         optionsMenu.innerHTML = `<button id="leave-group-button" class="danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Grupo</button>`;
     }
-    
     loadChatMessages(chatInfo.id);
     resetUnreadCount(chatInfo.id);
     listenForTypingStatus(chatInfo.id);
-
     document.getElementById('chat-conversation-screen').classList.remove('hidden');
     document.getElementById('chat-welcome-screen').classList.add('hidden');
     document.getElementById('message-input').focus();
-    
     document.body.classList.add('chat-active');
 }
 
@@ -103,60 +84,67 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Autenticação Central ---
     firebase.auth().onAuthStateChanged(user => {
         if (user) {
-            // Um usuário está logado (seja anônimo ou com Google)
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 const userData = JSON.parse(savedUser);
-                // Valida se o usuário autenticado corresponde ao usuário salvo
                 if (userData.authUid === user.uid) {
-                    currentUser = userData; // Define a variável global
+                    currentUser = userData;
                     initializeAppForUser(user);
                 } else {
-                    // Inconsistência. Limpa o estado para evitar problemas.
-                    console.warn("Inconsistência entre auth e localStorage. Deslogando.");
                     localStorage.clear();
-                    firebase.auth().signOut(); // Força o deslog para recomeçar
+                    firebase.auth().signOut();
                 }
             }
         } else {
-            // Usuário está deslogado
             currentUser = null;
             localStorage.clear();
             showLoginScreen();
         }
     });
 
-    // Lógica para tratar o retorno do VÍNCULO com Google
+    // =====================================================================
+    //  BLOCO DE DEPURAÇÃO PARA O LOGIN GOOGLE
+    // =====================================================================
+    console.log("Ponto de Prova 1: App carregado, esperando resultado do redirect.");
+
     firebase.auth().getRedirectResult()
         .then((result) => {
+            console.log("Ponto de Prova 2: getRedirectResult() foi concluído.");
+
             if (result && result.user) {
+                console.log("Ponto de Prova 3: Sucesso! Dados recebidos do Google.", result.user);
+                
                 const email = result.user.email;
                 const localUser = JSON.parse(localStorage.getItem('currentUser'));
 
                 if (email && localUser) {
-                    // Vincula o email da conta Google ao perfil do usuário
+                    console.log(`Ponto de Prova 4: Tentando salvar o email '${email}' para o usuário '${localUser.id}'`);
+                    
                     database.ref(`users/${localUser.id}/googleEmail`).set(email)
                         .then(() => {
+                            console.log("Ponto de Prova 5: SUCESSO! O email foi escrito no banco de dados.");
                             alert("Conta Google vinculada com sucesso!");
-                            // Recarrega o painel de identidade se estiver aberto
+
                             if (!document.getElementById('identity-overlay').classList.contains('hidden')) {
+                                console.log("Recarregando o painel de identidade...");
                                 showIdentityPanel(localUser.id);
                             }
                         })
                         .catch((dbError) => {
-                            console.error("Erro ao salvar o email no banco de dados:", dbError);
+                            console.error("Ponto de Prova 5: FALHA! Erro ao escrever no banco de dados.", dbError);
+                            alert("Falha ao salvar o email no seu perfil. Verifique o console para mais detalhes.");
                         });
+                } else {
+                    console.warn("Ponto de Prova 4: Falha. Não foi possível encontrar o email do Google ou o usuário local.", { email, localUser });
                 }
+            } else {
+                console.log("Ponto de Prova 3: Nenhum resultado de redirecionamento encontrado. Isso é normal se não houve login.");
             }
         }).catch((error) => {
-            console.error("Erro no redirecionamento do Google:", error);
-            if (error.code === 'auth/credential-already-in-use') {
-                alert("Erro: Esta conta do Google já está vinculada a outro usuário do nosso sistema.");
-            } else {
-                alert("Ocorreu um erro ao tentar vincular a conta Google.");
-            }
+            console.error("Ponto de Prova 2: FALHA! Ocorreu um erro crítico no getRedirectResult().", error);
+            alert("Ocorreu um erro ao tentar vincular a conta Google.");
         });
-    
+
     // --- Event Listeners ---
     loginButton.addEventListener('click', () => loginUser(usernameInput.value));
     usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value); });
@@ -217,13 +205,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DELEGAÇÃO DE EVENTOS PARA ITENS DINÂMICOS ---
     document.addEventListener('click', (e) => {
         const target = e.target;
-        // Botão "Conversar" na busca
         if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
-        // Botão "Criar Grupo"
         if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
@@ -234,11 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
-        // Nomes clicáveis para abrir identidade
         if (target.classList.contains('clickable-name') && target.dataset.userid) {
             showIdentityPanel(target.dataset.userid);
         }
-        // Lógica do painel de identidade
         if(target.id === 'link-google-btn') linkGoogleAccount();
         if(target.id === 'save-bio-btn') {
             const bio = document.getElementById('bio-textarea').value;
@@ -250,20 +234,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (url && currentUser) {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
-                showIdentityPanel(currentUser.id); // Recarrega o painel
+                showIdentityPanel(currentUser.id);
             }
         }
-        // Submeter avaliação
         if(target.id === 'submit-rating-btn' && !target.classList.contains('hidden')) {
             const rating = parseInt(target.dataset.rating, 10);
             const userId = target.parentElement.querySelector('.star-rating').dataset.userid;
             submitUserRating(userId, rating);
             alert(`Você avaliou com ${rating} estrelas!`);
-            showIdentityPanel(userId); // Recarrega para mostrar que já foi avaliado
+            showIdentityPanel(userId);
         }
     });
     
-    // Delegação de eventos para as estrelas
     document.addEventListener('mouseover', e => {
         if (e.target.matches('.star-rating i')) {
             const allStars = e.target.parentElement.querySelectorAll('i');
@@ -295,8 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // --- LISTENERS DOS MENUS ---
     chatOptionsButton.addEventListener('click', (e) => {
         e.stopPropagation();
         document.getElementById('chat-options-menu').classList.toggle('hidden');
@@ -306,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeChat) return;
         const button = e.target.closest('button');
         if (!button) return;
-
         const action = button.id;
         switch(action) {
             case 'block-user-button':
@@ -383,40 +362,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Listener para menu de contexto da mensagem (editar/apagar)
     messagesArea.addEventListener('contextmenu', e => {
         e.preventDefault();
-        
         const bubble = e.target.closest('.message-bubble');
         if (!bubble) return;
-
         if (!currentUser || bubble.dataset.senderId !== currentUser.id || bubble.querySelector('.deleted-text')) {
             return;
         }
-
         const menu = document.getElementById('message-context-menu');
         menu.classList.remove('hidden');
         menu.style.top = `${e.clientY}px`;
         menu.style.left = `${e.clientX}px`;
-
         const messageId = bubble.id.replace('msg-', '');
-        
-        // Remove listeners antigos para evitar chamadas múltiplas
         const newEditBtn = menu.querySelector('#edit-message-btn').cloneNode(true);
         menu.querySelector('#edit-message-btn').replaceWith(newEditBtn);
-
         const newDeleteBtn = menu.querySelector('#delete-message-btn').cloneNode(true);
         menu.querySelector('#delete-message-btn').replaceWith(newDeleteBtn);
-        
         newEditBtn.onclick = () => {
             menu.classList.add('hidden');
-            const currentText = bubble.querySelector('.message-content').textContent;
+            const contentElement = bubble.querySelector('.message-content') || bubble;
+            const currentText = contentElement.textContent;
             const newText = prompt('Edite sua mensagem:', currentText);
             if (newText && newText.trim() !== "" && newText.trim() !== currentText) {
                 editMessage(activeChat.id, messageId, newText.trim());
             }
         };
-
         newDeleteBtn.onclick = () => {
              menu.classList.add('hidden');
              if (confirm('Tem certeza que deseja apagar esta mensagem para todos?')) {
