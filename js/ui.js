@@ -1,333 +1,378 @@
-function showLoginScreen() {
-    document.getElementById('login-container').classList.remove('hidden');
-    document.getElementById('chat-container').classList.add('hidden');
-}
+let activeChatRef = null;
+let typingTimeout = null;
 
-function showChatInterface() {
+// --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
+
+function searchUsers(query) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    document.getElementById('login-container').classList.add('hidden');
-    document.getElementById('chat-container').classList.remove('hidden');
+    const usersRef = database.ref('users');
     
-    const userInfoDiv = document.getElementById('current-user-info');
-    if (currentUser) {
-        userInfoDiv.innerHTML = `Logado como: <strong>${currentUser.username}</strong><br><span>ID: ${currentUser.id}</span>`;
-    }
-}
-
-function toggleOverlay(overlayId, show) {
-    const overlay = document.getElementById(overlayId);
-    if (show) {
-        overlay.classList.remove('hidden');
-    } else {
-        overlay.classList.add('hidden');
-        if(overlayId !== 'message-context-menu') {
-            overlay.innerHTML = ''; // Limpa o conteúdo ao fechar, exceto o menu de msg
-        }
-    }
-}
-
-function addUserToContactsList(chatInfo) {
-    const contactList = document.getElementById('contact-list');
-    if (document.getElementById(`contact-${chatInfo.id}`)) return;
-
-    const contactDiv = document.createElement('div');
-    contactDiv.className = 'contact-item';
-    contactDiv.id = `contact-${chatInfo.id}`;
-    contactDiv.onclick = () => setActiveChat(chatInfo);
-
-    let html = '';
-    const unreadBadge = `<div class="unread-badge hidden" id="unread-${chatInfo.id}">0</div>`;
-
-    if (chatInfo.type === 'group') {
-        html = `
-            <div class="status-dot"><i class="fa-solid fa-users"></i></div>
-            <div class="contact-details">
-                <strong>${convertMarkdownToHtml(chatInfo.groupName)}</strong>
-            </div>
-            ${unreadBadge}`;
-    } else {
-        html = `
-            <div id="status-${chatInfo.withUserId}" class="status-dot offline"><i class="fa-solid fa-circle"></i></div>
-            <div class="contact-details">
-                <strong>${chatInfo.withUsername}</strong>
-            </div>
-            ${unreadBadge}`;
-        listenForStatusUpdates(chatInfo.withUserId);
-    }
-    contactDiv.innerHTML = html;
-    contactList.prepend(contactDiv);
-    updateContactUnreadCount(chatInfo.id, chatInfo.unreadCount);
-}
-
-function removeContactFromList(chatId) {
-    const contactItem = document.getElementById(`contact-${chatId}`);
-    if (contactItem) contactItem.remove();
-}
-
-function updateContactStatus(userId, status) {
-    const statusDot = document.getElementById(`status-${userId}`);
-    if (statusDot) {
-        statusDot.innerHTML = `<i class="fa-solid fa-circle"></i>`;
-        statusDot.classList.toggle('online', status === 'online');
-    }
-}
-
-// --- NOVA FUNÇÃO PARA CONTADOR DE MENSAGENS NÃO LIDAS ---
-function updateContactUnreadCount(chatId, count) {
-    const badge = document.getElementById(`unread-${chatId}`);
-    if (badge) {
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-}
-
-
-function displayMessage(message, currentUserId) {
-    const messagesArea = document.getElementById('messages-area');
-    const bubble = document.createElement('div');
-    bubble.classList.add('message-bubble');
-    bubble.id = `msg-${message.id}`;
-    // NOVO: Adiciona o senderId como um atributo de dados para fácil acesso
-    bubble.dataset.senderId = message.senderId;
-    
-    const isSent = message.senderId === currentUserId;
-    bubble.classList.add(isSent ? 'sent' : 'received');
-    
-    const contentHtml = buildMessageContent(message);
-    const metaHtml = buildMessageMeta(message, isSent);
-
-    bubble.innerHTML = contentHtml + metaHtml;
-    
-    messagesArea.appendChild(bubble);
-    messagesArea.scrollTop = messagesArea.scrollHeight;
-}
-
-// --- NOVA FUNÇÃO PARA ATUALIZAR MENSAGEM EXISTENTE NA UI (EDIÇÃO, STATUS) ---
-function updateMessageInUI(message) {
-    const bubble = document.getElementById(`msg-${message.id}`);
-    if (!bubble) return;
-
-    const isSent = bubble.classList.contains('sent');
-    
-    const contentHtml = buildMessageContent(message);
-    const metaHtml = buildMessageMeta(message, isSent);
-
-    bubble.innerHTML = contentHtml + metaHtml;
-}
-
-// --- NOVAS FUNÇÕES AUXILIARES PARA CONSTRUIR O HTML DA MENSAGEM ---
-function buildMessageContent(message) {
-    let content = '';
-    if (message.isDeleted) {
-        content = `<span class="deleted-text">${convertMarkdownToHtml(message.text)}</span>`;
-    } else if (message.text) {
-        content = convertMarkdownToHtml(message.text);
-    } else if (message.imageUrl) {
-        content = `<img src="${message.imageUrl}" alt="Imagem enviada">`;
-    }
-
-    if (activeChat.type === 'group' && !bubble.classList.contains('sent')) {
-        return `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
-    }
-    return content;
-}
-
-function buildMessageMeta(message, isSent) {
-    const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const editedTag = message.isEdited ? '<span class="edited-tag">(editado)</span>' : '';
-    
-    let statusIcon = '';
-    if(isSent && !message.isDeleted) {
-        switch (message.status) {
-            case 'read':
-                statusIcon = '<i class="fa-solid fa-check-double receipt-read"></i>';
-                break;
-            case 'delivered':
-                 statusIcon = '<i class="fa-solid fa-check-double"></i>';
-                break;
-            case 'sent':
-            default:
-                statusIcon = '<i class="fa-solid fa-check"></i>';
-        }
-    }
-
-    return `<div class="message-meta">${editedTag} ${time} ${statusIcon}</div>`;
-}
-
-// --- NOVA FUNÇÃO PARA O INDICADOR DE "DIGITANDO" ---
-function updateTypingIndicator(typingUsers) {
-    const detailsElement = document.getElementById('chat-header-details');
-    const originalDetails = detailsElement.dataset.originalText || detailsElement.innerHTML;
-
-    if (typingUsers.length > 0) {
-        const names = typingUsers.join(', ');
-        detailsElement.innerHTML = `<span class="typing-indicator">${names} digitando...</span>`;
-    } else {
-        detailsElement.innerHTML = originalDetails;
-    }
-}
-
-
-// --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
-
-function buildAddContactPanel() {
-    return `
-        <div class="overlay-content">
-            <button class="close-button" onclick="toggleOverlay('add-contact-overlay', false)">&times;</button>
-            <h3>Iniciar uma nova conversa</h3>
-            <input type="text" id="search-user-input" placeholder="Buscar por nome de usuário...">
-            <div id="search-results" class="scrollable-list"></div>
-        </div>`;
-}
-
-function displaySearchResults(users) {
-    const searchResultsDiv = document.getElementById('search-results');
-    if (!searchResultsDiv) return;
-    searchResultsDiv.innerHTML = '';
-    
-    if (users.length === 0) {
-        searchResultsDiv.innerHTML = '<p style="padding: 10px;">Nenhum usuário encontrado.</p>';
-        return;
-    }
-    users.forEach(user => {
-        const userDiv = document.createElement('div');
-        userDiv.className = 'list-item';
-        userDiv.style.justifyContent = 'space-between';
-        userDiv.innerHTML = `
-            <div>
-                <strong>${user.username}</strong><br><small>${user.id}</small>
-            </div>
-            <button class="action-button add-user-btn" data-user-id='${user.id}' data-user-username='${user.username}'>Conversar</button>
-        `;
-        searchResultsDiv.appendChild(userDiv);
+    usersRef.orderByChild('username').startAt(query).endAt(query + '\uf8ff').once('value', snapshot => {
+        const users = [];
+        snapshot.forEach(childSnapshot => {
+            const user = childSnapshot.val();
+            if (user.id !== currentUser.id) {
+                users.push(user);
+            }
+        });
+        displaySearchResults(users);
     });
 }
 
-async function buildNewGroupPanelContent() {
+function startChatWith(otherUser) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
-    const allUsersSnapshot = await database.ref('users').once('value');
-    const allUsers = allUsersSnapshot.val();
-
-    let contactsListHtml = '<p style="padding: 10px;">Você precisa ter conversas 1-a-1 para adicionar pessoas a um grupo.</p>';
+    const chatId = [currentUser.id, otherUser.id].sort().join('_');
     
-    const directChatsSnapshot = await userChatsRef.orderByChild('type').equalTo('direct').once('value');
-    if (directChatsSnapshot.exists()) {
-        contactsListHtml = '';
-        directChatsSnapshot.forEach(childSnapshot => {
-            const chatInfo = childSnapshot.val();
-            const contactUser = allUsers ? allUsers[chatInfo.withUserId] : null;
-            if (contactUser) {
-                 contactsListHtml += `
-                    <label class="list-item">
-                        <input type="checkbox" value="${contactUser.id}">
-                        <span>${contactUser.username} (${contactUser.id})</span>
-                    </label>`;
+    const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id, unreadCount: 0 };
+    const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id, unreadCount: 0 };
+
+    // Usa escritas separadas que funcionam com as novas regras de segurança
+    database.ref(`/user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
+    database.ref(`/user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
+}
+
+
+function loadUserChats(userId) {
+    const userChatsRef = database.ref(`user_chats/${userId}`);
+    userChatsRef.on('child_added', snapshot => {
+        const chatInfo = { ...snapshot.val(), id: snapshot.key };
+        addUserToContactsList(chatInfo);
+    });
+    userChatsRef.on('child_changed', snapshot => {
+        const chatInfo = { ...snapshot.val(), id: snapshot.key };
+        updateContactUnreadCount(chatInfo.id, chatInfo.unreadCount);
+    });
+    userChatsRef.on('child_removed', snapshot => {
+        removeContactFromList(snapshot.key);
+    });
+}
+
+function listenForStatusUpdates(userId) {
+    const userStatusRef = database.ref(`users/${userId}`);
+    userStatusRef.on('value', snapshot => {
+        const userData = snapshot.val();
+        if (userData) {
+            updateContactStatus(userId, userData.status);
+        }
+    });
+}
+
+function loadChatMessages(chatId) {
+    if (activeChatRef) {
+        activeChatRef.off();
+    }
+
+    const messagesArea = document.getElementById('messages-area');
+    messagesArea.innerHTML = '';
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    const messagesRef = database.ref('chats/' + chatId).orderByChild('timestamp').limitToLast(100);
+    activeChatRef = messagesRef;
+
+    activeChatRef.on('child_added', (snapshot) => {
+        const message = { ...snapshot.val(), id: snapshot.key };
+        displayMessage(message, currentUser.id);
+        if (message.senderId !== currentUser.id && message.status !== 'read') {
+            database.ref(`chats/${chatId}/${message.id}`).update({ status: 'read' });
+        }
+    });
+
+    activeChatRef.on('child_changed', (snapshot) => {
+        const message = { ...snapshot.val(), id: snapshot.key };
+        updateMessageInUI(message);
+    });
+}
+
+// --- FUNÇÕES DE ENVIO DE MENSAGEM ---
+
+async function sendTextMessage(chatId, text, chatType) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (chatType === 'direct') {
+        const otherUserId = chatId.replace(currentUser.id, '').replace('_', '');
+        const isBlocked = await checkIfBlocked(otherUserId);
+        if (isBlocked) {
+            alert("Você não pode enviar mensagens para este usuário, pois você o bloqueou.");
+            return;
+        }
+    }
+    const message = { 
+        senderId: currentUser.id, 
+        senderName: currentUser.username, 
+        text: text, 
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        status: 'sent',
+        isEdited: false
+    };
+    const messageRef = database.ref('chats/' + chatId).push();
+    messageRef.set(message);
+
+    incrementUnreadCount(chatId, currentUser.id);
+}
+
+function handlePhotoUpload(chatId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/gif';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500 * 1024) {
+            alert("A imagem é muito grande! O limite para este método é de 500 KB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            sendImageMessage(chatId, reader.result);
+        };
+    };
+    input.click();
+}
+
+function sendImageMessage(chatId, base64String) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const message = {
+        senderId: currentUser.id,
+        imageUrl: base64String,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        status: 'sent',
+        isEdited: false
+    };
+    database.ref('chats/' + chatId).push(message);
+    incrementUnreadCount(chatId, currentUser.id);
+}
+
+// --- FUNÇÕES DE EDIÇÃO E EXCLUSÃO DE MENSAGENS ---
+function editMessage(chatId, messageId, newText) {
+    const messageRef = database.ref(`chats/${chatId}/${messageId}`);
+    messageRef.update({
+        text: newText,
+        isEdited: true
+    });
+}
+
+function deleteMessage(chatId, messageId) {
+    const messageRef = database.ref(`chats/${chatId}/${messageId}`);
+    messageRef.update({
+        text: '🗑️ Mensagem apagada',
+        imageUrl: null,
+        isDeleted: true
+    });
+}
+
+
+// --- FUNÇÕES DE RECIBOS E CONTADOR ---
+function incrementUnreadCount(chatId, senderId) {
+    const userChatsRef = database.ref('user_chats');
+    const participantIds = chatId.split('_');
+    participantIds.forEach(userId => {
+        if (userId !== senderId) {
+            const userChatRef = userChatsRef.child(userId).child(chatId);
+            userChatRef.child('unreadCount').transaction(count => (count || 0) + 1);
+        }
+    });
+    database.ref(`groups/${chatId}/participants`).once('value', snapshot => {
+        if (!snapshot.exists()) return;
+        snapshot.forEach(participantSnap => {
+            const userId = participantSnap.key;
+            if (userId !== senderId) {
+                const userChatRef = userChatsRef.child(userId).child(chatId);
+                userChatRef.child('unreadCount').transaction(count => (count || 0) + 1);
             }
         });
-    }
-
-    const listContainer = document.getElementById('group-user-list');
-    if(listContainer) listContainer.innerHTML = contactsListHtml;
+    });
 }
 
-function buildParticipantsPanel(participants) {
-    let participantsHtml = '';
-    for (const user of participants) {
-        participantsHtml += `<div class="list-item">${user.username} (${user.id})</div>`;
-    }
-    return `
-        <div class="overlay-content">
-             <button class="close-button" onclick="toggleOverlay('participants-overlay', false)">&times;</button>
-             <h3>Participantes</h3>
-             <div class="scrollable-list">${participantsHtml}</div>
-        </div>
-    `;
+function resetUnreadCount(chatId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`user_chats/${currentUser.id}/${chatId}/unreadCount`).set(0);
 }
 
-async function buildIdentityPanel(userId) {
-    const me = JSON.parse(localStorage.getItem('currentUser'));
-    const isMyProfile = userId === me.id;
 
-    const userRef = database.ref(`users/${userId}`);
-    const snapshot = await userRef.once('value');
-    
-    if (!snapshot.exists()) {
-        console.error("Usuário não encontrado com o ID:", userId);
-        return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
-    }
-    const userData = snapshot.val();
-    
-    const joinDate = userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('pt-BR') : 'Desconhecida';
-    let linksHtml = 'Nenhum link adicionado.';
-    if (userData.links) {
-        linksHtml = Object.entries(userData.links).map(([key, value]) => `
-            <div class="link-item">
-                <a href="${value.url}" target="_blank">
-                    <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${value.url}" alt="ícone">
-                    <span>${value.url}</span>
-                </a>
-                ${isMyProfile ? `<button class="icon-button" onclick="removeUserLink('${key}')">&times;</button>` : ''}
-            </div>
-        `).join('');
-    }
-
-    let ratingHtml = '';
-    const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
-    const totalRatings = userData.ratings ? userData.ratings.count : 0;
-    const hasRated = userData.ratedBy && userData.ratedBy[me.id];
-
-    if (isMyProfile) {
-        ratingHtml = `<div class="rating-summary">Sua Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i> (${totalRatings} avaliações)</div>`;
-    } else if (hasRated) {
-        ratingHtml = `<div class="rating-summary">Você já avaliou este usuário. Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i></div>`;
+// --- FUNÇÕES DE "DIGITANDO" ---
+function setTypingStatus(chatId, isTyping) {
+    const authUser = firebase.auth().currentUser;
+    if (!authUser) return;
+    const typingRef = database.ref(`typing_status/${chatId}/${authUser.uid}`);
+    if (isTyping) {
+        const localUser = JSON.parse(localStorage.getItem('currentUser'));
+        typingRef.set(localUser.username);
+        typingRef.onDisconnect().remove();
     } else {
-        ratingHtml = `
-            <h4>Avalie este usuário:</h4>
-            <div class="star-rating" data-userid="${userId}">
-                ${[...Array(10)].map((_, i) => `<i class="fa-regular fa-star" data-value="${i + 1}"></i>`).join('')}
-            </div>
-            <button id="submit-rating-btn" class="action-button hidden">Enviar Avaliação</button>
-        `;
+        typingRef.remove();
     }
-    
-    const panelHtml = `
-    <div class="overlay-content">
-        <button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button>
-        <h3>Identidade de ${userData.username}</h3>
-        <div class="scrollable-list" style="padding: 10px;">
-            <div class="identity-info-grid">
-                <i class="fa-solid fa-user"></i> <span>${userData.username}</span>
-                <i class="fa-solid fa-hashtag"></i> <span>${userData.id}</span>
-                <i class="fa-solid fa-calendar-alt"></i> <span>Entrou em: ${joinDate}</span>
-                ${userData.googleEmail ? `<i class="fa-brands fa-google"></i> <span>${userData.googleEmail}</span>` : ''}
-            </div>
-            
-            ${!isMyProfile && userData.googleEmail ? '' : (isMyProfile && !userData.googleEmail ? '<button id="link-google-btn" class="google-signin-btn action-button"><i class="fa-brands fa-google"></i> Vincular Conta Google</button>' : '')}
-            
-            <hr>
-            <h4>Biografia</h4>
-            ${isMyProfile 
-                ? `<textarea id="bio-textarea" placeholder="Conte um pouco sobre você...">${userData.bio || ''}</textarea><button id="save-bio-btn" class="action-button">Salvar Bio</button>` 
-                : `<p>${convertMarkdownToHtml(userData.bio) || 'Nenhuma biografia definida.'}</p>`
+}
+
+function listenForTypingStatus(chatId) {
+    const authUser = firebase.auth().currentUser;
+    if (!authUser) return;
+    const typingRef = database.ref(`typing_status/${chatId}`);
+    typingRef.on('value', snapshot => {
+        const typingUsers = [];
+        snapshot.forEach(childSnap => {
+            if(childSnap.key !== authUser.uid){
+                typingUsers.push(childSnap.val());
             }
-            
-            <hr>
-            <h4>Links</h4>
-            ${linksHtml}
-            ${isMyProfile 
-                ? `<div style="display: flex; gap: 10px; margin-top: 10px;"><input type="text" id="new-link-input" placeholder="https://exemplo.com"><button id="add-link-btn" class="action-button">Add</button></div>` 
-                : ''
-            }
-            <hr>
-            ${ratingHtml}
-        </div>
-    </div>
-    `;
+        });
+        updateTypingIndicator(typingUsers);
+    });
+}
+
+// --- FUNÇÕES DE GRUPO ---
+
+function createGroup(groupName, participantIds) {
+    // Esta função ainda precisa de ajustes para a lógica de auth.uid vs customId
+}
+
+function leaveGroup(groupId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`groups/${groupId}/participants/${currentUser.authUid}`).remove(); // Usa authUid
+    database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
+}
+
+// --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
+
+function blockUser(otherUserId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
+}
+
+function unblockUser(otherUserId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).remove();
+}
+
+async function checkIfBlocked(otherUserId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const snapshot = await database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).once('value');
+    return snapshot.exists();
+}
+
+function deleteConversation(chatId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
+}
+
+async function deleteCurrentUserAccount() {
+    const authUser = firebase.auth().currentUser;
+    const localUser = JSON.parse(localStorage.getItem('currentUser'));
+
+    if (!authUser || !localUser) {
+        alert("Erro: Não foi possível identificar o usuário para apagar.");
+        return;
+    }
+
+    try {
+        console.log("Iniciando exclusão...");
+        
+        // 1. Apaga os dados do Realtime Database com chamadas separadas
+        await database.ref(`/users/${localUser.id}`).remove();
+        await database.ref(`/user_chats/${localUser.id}`).remove();
+        await database.ref(`/blocked_users/${localUser.id}`).remove();
+        // Adicione aqui outras chamadas .remove() se necessário (ex: em grupos)
+        
+        console.log("Dados do Realtime Database apagados.");
+
+        // 2. Apaga a conta de autenticação do Firebase
+        await authUser.delete();
+        console.log("Conta de autenticação do Firebase apagada.");
+
+        // 3. Limpa o estado local e recarrega a página
+        localStorage.clear();
+        alert("Sua conta foi apagada com sucesso.");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("Erro ao apagar a conta:", error);
+        if (error.code === 'auth/requires-recent-login') {
+            alert("Esta é uma operação sensível e requer que você tenha feito login recentemente. Por favor, deslogue e logue novamente para apagar sua conta.");
+        } else {
+            alert("Ocorreu um erro ao apagar sua conta: " + error.message);
+        }
+    }
+}
+
+// --- FUNÇÕES DE IDENTIDADE ---
+
+function linkGoogleAccount() {
+    const authUser = firebase.auth().currentUser;
+    if (!authUser) {
+        alert("Você precisa estar logado para vincular uma conta.");
+        return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
     
-    return panelHtml;
+    // Tenta o método Pop-up primeiro.
+    authUser.linkWithPopup(provider)
+        .then((result) => {
+            // Se o Pop-up funcionar, o resultado é processado aqui mesmo.
+            console.log("Sucesso no Pop-up! Vinculando dados...");
+            const email = result.user.email;
+            const localUser = JSON.parse(localStorage.getItem('currentUser'));
+
+            if (email && localUser) {
+                database.ref(`users/${localUser.id}/googleEmail`).set(email)
+                    .then(() => {
+                        alert("Conta Google vinculada com sucesso!");
+                        if (!document.getElementById('identity-overlay').classList.contains('hidden')) {
+                            showIdentityPanel(localUser.id);
+                        }
+                    })
+                    .catch((dbError) => {
+                        console.error("Erro ao salvar o email no banco de dados:", dbError);
+                    });
+            }
+        })
+        .catch((error) => {
+            // Se o Pop-up falhar, verificamos o motivo.
+            if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+                // Se foi bloqueado ou fechado, usamos o Plano B: Redirect.
+                console.warn("Pop-up bloqueado. Tentando o método de redirecionamento como fallback.");
+                authUser.linkWithRedirect(provider);
+            } else if (error.code === 'auth/credential-already-in-use') {
+                alert("Erro: Esta conta do Google já está vinculada a outro usuário do sistema.");
+            } else {
+                console.error("Erro ao vincular com Pop-up:", error);
+                alert("Ocorreu um erro desconhecido ao vincular a conta.");
+            }
+        });
+}
+
+function updateUserBio(bio) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/bio`).set(bio);
+}
+
+function addUserLink(url) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/links`).push({ url: url });
+}
+
+function removeUserLink(linkId) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    database.ref(`users/${currentUser.id}/links/${linkId}`).remove();
+}
+
+function submitUserRating(ratedUserId, rating) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
+    const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.authUid}`);
+
+    ratingRef.transaction((currentRatings) => {
+        if (currentRatings === null) {
+            return { sum: rating, count: 1 };
+        } else {
+            return { sum: (currentRatings.sum || 0) + rating, count: (currentRatings.count || 0) + 1 };
+        }
+    });
+
+    ratedByRef.set(true);
+}
+
+function convertMarkdownToHtml(text) {
+    if (!text) return '';
+    const rawHtml = marked.parse(text);
+    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+    return sanitizedHtml;
 }
