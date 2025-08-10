@@ -1,5 +1,3 @@
---- START OF FILE main.js ---
-
 let activeChat = null;
 let typingTimeout = null; // --- NOVO ---
 let typingIndicatorRef = null; // --- NOVO ---
@@ -387,4 +385,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
---- END OF FILE main.js ---
