@@ -1,5 +1,3 @@
---- START OF FILE ui.js ---
-
 // --- FUNÇÕES DE UI (GERAIS) ---
 
 function showLoginScreen() {
@@ -377,4 +375,3 @@ function showNotification(title, body) {
         new Notification(title, { body: body, icon: './favicon.ico' });
     }
 }
---- END OF FILE ui.js ---
