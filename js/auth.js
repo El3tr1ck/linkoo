@@ -1,4 +1,3 @@
-// A sua função original para gerar o ID que você quer manter.
 function generateCustomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let randomChars = '';
@@ -16,29 +15,24 @@ async function loginUser(username) {
     }
 
     try {
-        // 1. Autentica o usuário anonimamente para obter um `auth.uid` seguro.
         const userCredential = await firebase.auth().signInAnonymously();
         const authUid = userCredential.user.uid;
 
-        // 2. Gera seu ID customizado.
         const customId = generateCustomId();
         
         const userRef = database.ref('users/' + customId);
 
-        // 3. Prepara os dados do usuário, incluindo a "prova de propriedade" (authUid).
         const userData = {
             username: username,
             id: customId,
-            authUid: authUid, // CAMPO CRUCIAL PARA A SEGURANÇA
+            authUid: authUid,
             status: 'online',
             createdAt: firebase.database.ServerValue.TIMESTAMP,
             last_seen: firebase.database.ServerValue.TIMESTAMP
         };
 
-        // 4. Salva os dados. Isso funcionará com as novas regras.
         await userRef.set(userData);
         
-        // 5. Salva no localStorage para uso na sessão.
         localStorage.setItem('currentUser', JSON.stringify({ 
             username: username, 
             id: customId,
@@ -56,12 +50,19 @@ async function loginUser(username) {
 }
 
 function setupPresence(customUserId) {
-    const userStatusRef = database.ref('/users/' + userId);
+    if(!customUserId) {
+        console.error("setupPresence foi chamado sem um customUserId.");
+        return;
+    }
+
+    const userStatusRef = database.ref('/users/' + customUserId);
     const presenceRef = database.ref('.info/connected');
 
     presenceRef.on('value', (snap) => {
         if (snap.val() === true) {
-            userStatusRef.update({ status: 'online' });
+            userStatusRef.update({ status: 'online' }).catch(err => {
+                console.error("Falha ao atualizar o status para online:", err.message);
+            });
             userStatusRef.onDisconnect().update({
                 status: 'offline',
                 last_seen: firebase.database.ServerValue.TIMESTAMP
