@@ -1,3 +1,5 @@
+// --- START OF FILE chat.js (CORRIGIDO) ---
+
 let activeChatRef = null;
 
 // --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
@@ -18,6 +20,7 @@ function searchUsers(query) {
     });
 }
 
+// ALTERADO: A função agora usa uma atualização atômica para maior confiabilidade.
 function startChatWith(otherUser) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const chatId = [currentUser.id, otherUser.id].sort().join('_');
@@ -25,8 +28,14 @@ function startChatWith(otherUser) {
     const chatDataForCurrentUser = { type: 'direct', withUsername: otherUser.username, withUserId: otherUser.id };
     const chatDataForOtherUser = { type: 'direct', withUsername: currentUser.username, withUserId: currentUser.id };
 
-    database.ref(`user_chats/${currentUser.id}/${chatId}`).set(chatDataForCurrentUser);
-    database.ref(`user_chats/${otherUser.id}/${chatId}`).set(chatDataForOtherUser);
+    const updates = {};
+    updates[`/user_chats/${currentUser.id}/${chatId}`] = chatDataForCurrentUser;
+    updates[`/user_chats/${otherUser.id}/${chatId}`] = chatDataForOtherUser;
+
+    database.ref().update(updates).catch(error => {
+        console.error("Falha ao iniciar o chat:", error);
+        alert("Não foi possível iniciar a conversa. Verifique sua conexão ou tente novamente.");
+    });
 }
 
 function loadUserChats(userId) {
@@ -172,35 +181,49 @@ function deleteConversation(chatId) {
     database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
 }
 
+// ALTERADO: A função agora também deleta o usuário da autenticação do Firebase.
 async function deleteCurrentUserAccount() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) return;
 
-    const groupsSnapshot = await database.ref('groups').once('value');
-    const groups = groupsSnapshot.val();
-    if (groups) {
-        for (const groupId in groups) {
-            if (groups[groupId].participants && groups[groupId].participants[currentUser.id]) {
-                database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
-            }
-        }
+    const authUser = firebase.auth().currentUser;
+
+    // Remove o usuário de todos os grupos dos quais participa
+    const groupsSnapshot = await database.ref('groups').orderByChild(`participants/${currentUser.id}`).equalTo(true).once('value');
+    if (groupsSnapshot.exists()) {
+        const updates = {};
+        groupsSnapshot.forEach(groupSnapshot => {
+            updates[`/groups/${groupSnapshot.key}/participants/${currentUser.id}`] = null;
+        });
+        await database.ref().update(updates);
     }
 
+    // Remove os dados do usuário do banco de dados
     await database.ref('users/' + currentUser.id).remove();
     await database.ref('user_chats/' + currentUser.id).remove();
     await database.ref('blocked_users/' + currentUser.id).remove();
 
+    // Tenta apagar o usuário da autenticação (se houver um logado via Google)
+    if (authUser) {
+        try {
+            await authUser.delete();
+        } catch (error) {
+            console.error("Erro ao apagar a conta de autenticação:", error);
+            alert("Seus dados foram removidos, mas ocorreu um erro ao desvincular a conta Google. Pode ser necessário um novo login para completar a ação.");
+        }
+    }
+
+    // Limpa os dados locais e recarrega a página
     localStorage.clear();
+    sessionStorage.clear(); // Limpa também a session storage por segurança
     window.location.reload();
 }
 
+
 // --- NOVAS FUNÇÕES DE IDENTIDADE ---
 
-// ALTERADO: A função agora usa signInWithRedirect para maior compatibilidade com celulares.
 function linkGoogleAccount() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Inicia o processo de login redirecionando para a página do Google.
-    // O navegador sairá do seu site e voltará depois.
     firebase.auth().signInWithRedirect(provider);
 }
 
@@ -224,7 +247,6 @@ function submitUserRating(ratedUserId, rating) {
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
 
-    // Usa uma transação para garantir que a soma e a contagem sejam atualizadas atomicamente
     ratingRef.transaction((currentRatings) => {
         if (currentRatings === null) {
             return { sum: rating, count: 1 };
@@ -233,7 +255,7 @@ function submitUserRating(ratedUserId, rating) {
         }
     });
 
-    ratedByRef.set(true); // Marca que o usuário atual já avaliou
+    ratedByRef.set(true);
 }
 
 function convertMarkdownToHtml(text) {
