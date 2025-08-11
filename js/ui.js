@@ -1,12 +1,9 @@
-// --- START OF FILE ui.js --- (CORRIGIDO)
-
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
     document.getElementById('chat-container').classList.add('hidden');
 }
 
 function showChatInterface() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
@@ -23,7 +20,7 @@ function toggleOverlay(overlayId, show) {
         overlay.classList.remove('hidden');
     } else {
         overlay.classList.add('hidden');
-        overlay.innerHTML = ''; // Limpa o conteúdo ao fechar
+        overlay.innerHTML = '';
     }
 }
 
@@ -78,7 +75,6 @@ function displayMessage(message, currentUserId) {
     }
     
     if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        // Adiciona o nome do remetente clicável para grupos
         bubble.innerHTML = `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
     } else {
         bubble.innerHTML = content;
@@ -87,8 +83,6 @@ function displayMessage(message, currentUserId) {
     messagesArea.appendChild(bubble);
     messagesArea.scrollTop = messagesArea.scrollHeight;
 }
-
-// --- FUNÇÕES DE CONSTRUÇÃO DE PAINÉIS (OVERLAYS) ---
 
 function buildAddContactPanel() {
     return `
@@ -124,7 +118,6 @@ function displaySearchResults(users) {
 }
 
 async function buildNewGroupPanelContent() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
     const allUsersSnapshot = await database.ref('users').once('value');
@@ -166,17 +159,13 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
-// --- NOVA FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
-
 async function buildIdentityPanel(userId) {
-    // ALTERADO: de sessionStorage para localStorage - ESTA É A CORREÇÃO PRINCIPAL
     const me = JSON.parse(localStorage.getItem('currentUser'));
     const isMyProfile = userId === me.id;
 
     const userRef = database.ref(`users/${userId}`);
     const snapshot = await userRef.once('value');
     
-    // Adicionada uma verificação de segurança, como sugerido anteriormente
     if (!snapshot.exists()) {
         console.error("Usuário não encontrado com o ID:", userId);
         return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
@@ -197,7 +186,6 @@ async function buildIdentityPanel(userId) {
         `).join('');
     }
 
-    // Lógica de Avaliação
     let ratingHtml = '';
     const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
     const totalRatings = userData.ratings ? userData.ratings.count : 0;
