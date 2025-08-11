@@ -21,20 +21,16 @@ async function loginUser(username) {
         username: username,
         id: userId,
         status: 'online',
-        createdAt: firebase.database.ServerValue.TIMESTAMP, // CAMPO ADICIONADO
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
         last_seen: firebase.database.ServerValue.TIMESTAMP
     };
 
     try {
         await userRef.set(userData);
-        
-        // ALTERADO: de sessionStorage para localStorage para persistir o login
         localStorage.setItem('currentUser', JSON.stringify({ username, id: userId }));
-        
         setupPresence(userId);
         showChatInterface();
         loadUserChats(userId);
-
     } catch (error) {
         console.error("Erro Crítico no Login:", error);
         alert("Falha ao conectar: " + error.message);
