@@ -1,3 +1,5 @@
+/* --- START OF FILE style.css (CORRIGIDO) --- */
+
 /* GERAL E TEMA ESCURO */
 :root {
     --bg-color: #18191a;
@@ -13,12 +15,12 @@
     --danger-color: #ff4d4d;
     --star-color: #f7d952;
 
-    /* MELHORIA: Variáveis para áreas seguras (notch/barras de sistema) */
+    /* Variáveis para áreas seguras (notch/barras de sistema) */
     --safe-area-top: env(safe-area-inset-top);
     --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
-/* MELHORIA: Box-sizing universal para um layout mais previsível */
+/* Box-sizing universal para um layout mais previsível */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -28,7 +30,7 @@ body {
     margin: 0;
     background-color: var(--bg-color);
     color: var(--primary-text-color);
-    /* CORREÇÃO: Aplicar a altura aqui para evitar problemas com 100vh */
+    /* Aplicar a altura aqui para evitar problemas com 100vh em alguns navegadores móveis */
     height: 100vh;
     width: 100vw;
     overflow: hidden;
@@ -50,19 +52,19 @@ body {
 #login-button:hover { background-color: #0a6ab3; }
 
 /* ESTRUTURA PRINCIPAL DO CHAT */
-/* CORREÇÃO: Usar 100% da altura do body */
 #chat-container { display: flex; height: 100%; position: relative; overflow: hidden; }
 #contacts-panel { width: 35%; max-width: 360px; background: var(--primary-surface-color); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transition: transform 0.3s ease-in-out; }
-#chat-panel { width: 100%; display: flex; flex-direction: column; background-color: var(--bg-color); }
+#chat-panel { flex-grow: 1; display: flex; flex-direction: column; background-color: var(--bg-color); }
 
 /* PAINEL DE CONTATOS (ESQUERDA) */
 .contacts-header { 
     padding: 10px; 
-    /* MELHORIA: Adiciona padding no topo para acomodar o notch */
+    /* Adiciona padding no topo para acomodar o notch */
     padding-top: calc(10px + var(--safe-area-top));
     border-bottom: 1px solid var(--border-color); 
     display: flex; 
     gap: 10px; 
+    flex-shrink: 0;
 }
 #add-contact-button, #new-group-button { width: 100%; padding: 10px; font-size: 0.9rem; background-color: var(--secondary-surface-color); color: var(--primary-text-color); border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #add-contact-button:hover, #new-group-button:hover { background-color: var(--hover-color); }
@@ -70,7 +72,6 @@ body {
 .scrollable-list { 
     overflow-y: auto; 
     flex-grow: 1; 
-    /* MELHORIA: Impede o scroll da página inteira ao rolar a lista */
     overscroll-behavior: contain;
 }
 #contact-list.scrollable-list { border: none; padding: 0; }
@@ -84,9 +85,10 @@ body {
 /* Rodapé do Painel de Contatos */
 .contacts-footer { 
     padding: 10px; 
-    /* MELHORIA: Adiciona padding em baixo para acomodar a barra de gestos */
+    /* Adiciona padding em baixo para acomodar a barra de gestos */
     padding-bottom: calc(10px + var(--safe-area-bottom));
-    border-top: 1px solid var(--border-color); flex-shrink: 0; 
+    border-top: 1px solid var(--border-color); 
+    flex-shrink: 0; 
 }
 #current-user-info { padding: 5px; font-size: 0.9em; color: var(--secondary-text-color); }
 #current-user-info strong { color: var(--primary-text-color); }
@@ -96,12 +98,12 @@ body {
 .danger-button:hover { background-color: var(--danger-color); color: white; }
 
 /* PAINEL DE CHAT (DIREITA) */
-.chat-area-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; } /* Usar 100% e não 100vh */
+.chat-area-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
 #chat-welcome-screen { display: flex; justify-content: center; align-items: center; text-align: center; color: var(--secondary-text-color); flex-grow: 1;}
 #chat-conversation-screen { height: 100%; display: flex; flex-direction: column; }
 .chat-header { 
     padding: 10px 20px; 
-    /* MELHORIA: Adiciona padding no topo para acomodar o notch */
+    /* Adiciona padding no topo para acomodar o notch */
     padding-top: calc(10px + var(--safe-area-top));
     border-bottom: 1px solid var(--border-color); 
     background-color: var(--primary-surface-color); 
@@ -109,14 +111,17 @@ body {
     justify-content: space-between; 
     align-items: center; 
     flex-shrink: 0; 
+    gap: 10px;
 }
-.chat-header-info { display: flex; align-items: center; gap: 15px; }
-.chat-header-info h3 { margin: 0; }
+/* Flexbox ajustado para o nome do usuário não ser cortado */
+.chat-header-info { display: flex; align-items: center; gap: 15px; flex-shrink: 1; min-width: 0; }
+.chat-header-info > div { flex-shrink: 1; min-width: 0; }
+.chat-header-info h3, .chat-header-info p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .clickable-name:hover { text-decoration: underline; cursor: pointer; }
 #chat-header-details { font-size: 0.8rem; color: var(--secondary-text-color); margin-top: 2px; }
 #chat-header-details.clickable { cursor: pointer; }
 #chat-header-details.clickable:hover { text-decoration: underline; }
-.chat-header-options { position: relative; }
+.chat-header-options { position: relative; flex-shrink: 0; }
 .icon-button { background: none; border: none; font-size: 1.2rem; color: var(--secondary-text-color); cursor: pointer; padding: 8px; border-radius: 50%; transition: background-color 0.2s; }
 .icon-button:hover { background-color: var(--hover-color); }
 .mobile-only { display: none; }
@@ -126,7 +131,7 @@ body {
 .message-bubble { max-width: 65%; width: fit-content; padding: 8px 14px; border-radius: 18px; word-wrap: break-word; line-height: 1.4; }
 .message-bubble.sent { background-color: var(--sent-bubble-bg); color: white; align-self: flex-end; }
 .message-bubble.received { background-color: var(--received-bubble-bg); color: var(--primary-text-color); align-self: flex-start; }
-.message-bubble img { max-width: 100%; border-radius: 15px; margin-top: 5px; }
+.message-bubble img { max-width: 100%; border-radius: 15px; margin-top: 5px; cursor: pointer; }
 .sender-name { display: block; font-weight: bold; font-size: 0.8em; color: var(--accent-color); margin-bottom: 4px; cursor: pointer; }
 .sender-name:hover { text-decoration: underline; }
 
@@ -145,7 +150,7 @@ body {
     display: flex; 
     align-items: center; 
     padding: 10px; 
-    /* MELHORIA: Adiciona padding em baixo para acomodar a barra de gestos */
+    /* Adiciona padding em baixo para acomodar a barra de gestos */
     padding-bottom: calc(10px + var(--safe-area-bottom));
     background: var(--primary-surface-color); 
     gap: 10px; 
@@ -162,9 +167,10 @@ body {
 .context-menu button { display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 12px; cursor: pointer; text-align: left; width: 100%; color: var(--primary-text-color); transition: background-color 0.2s; }
 .context-menu button:hover { background-color: var(--hover-color); }
 .context-menu button.danger { color: var(--danger-color); }
+.context-menu button i { width: 1.2em; text-align: center; }
 
 /* OVERLAYS (PAINÉIS) */
-.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; transition: opacity 0.2s; }
 .overlay-content { background: var(--primary-surface-color); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; max-height: 90vh; }
 .close-button { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--secondary-text-color); }
 .overlay-content h3, .overlay-content h4 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; }
@@ -179,15 +185,19 @@ body {
 /* Estilos Específicos do Painel de Identidade */
 .identity-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 15px; align-items: center; margin-bottom: 20px; }
 .identity-info-grid i { color: var(--secondary-text-color); }
-.link-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; background-color: var(--secondary-surface-color); padding: 8px; border-radius: 6px; }
-.link-item a { color: var(--primary-text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.links-container { display: flex; flex-direction: column; gap: 8px; }
+.link-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--secondary-surface-color); padding: 8px; border-radius: 6px; }
+.link-item a { color: var(--primary-text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.link-item a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .link-item a:hover { text-decoration: underline; }
-.link-item img { width: 16px; height: 16px; }
+.link-item img { width: 16px; height: 16px; flex-shrink: 0; }
 .google-signin-btn { background-color: #4285F4; color: white; }
-.star-rating { display: flex; justify-content: center; margin: 15px 0; }
-.star-rating i { font-size: 1.8rem; color: var(--secondary-surface-color); cursor: pointer; transition: color 0.2s, transform 0.2s; }
+.star-rating { display: flex; justify-content: center; flex-wrap: wrap; margin: 15px 0; }
+.star-rating i { font-size: 1.8rem; color: var(--secondary-surface-color); cursor: pointer; transition: color 0.2s, transform 0.2s; padding: 2px; }
 .star-rating i:hover { color: var(--star-color); transform: scale(1.1); }
 .star-rating i.fa-solid { color: var(--star-color); }
+.rating-summary { text-align: center; color: var(--secondary-text-color); }
+.rating-summary strong { color: var(--primary-text-color); }
 
 /* === RESPONSIVIDADE PARA CELULAR === */
 @media (max-width: 768px) {
@@ -212,6 +222,7 @@ body {
         transform: translateX(100%); 
         transition: transform 0.3s ease-in-out; 
         z-index: 30; 
+        background-color: var(--bg-color);
     }
     body.chat-active #contacts-panel { 
         transform: translateX(-100%); 
@@ -223,7 +234,6 @@ body {
         display: block; 
     }
     .message-bubble {
-        /* MELHORIA: Aumenta um pouco o tamanho máximo das bolhas em telas menores */
         max-width: 85%;
     }
 }
