@@ -1,4 +1,4 @@
-// --- START OF FILE ui.js --- (CORRIGIDO)
+// --- START OF FILE ui.js (CORRIGIDO) ---
 
 function showLoginScreen() {
     document.getElementById('login-container').classList.remove('hidden');
@@ -6,7 +6,6 @@ function showLoginScreen() {
 }
 
 function showChatInterface() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     document.getElementById('login-container').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
@@ -78,7 +77,6 @@ function displayMessage(message, currentUserId) {
     }
     
     if (activeChat.type === 'group' && message.senderId !== currentUserId) {
-        // Adiciona o nome do remetente clicável para grupos
         bubble.innerHTML = `<strong class="sender-name clickable-name" data-userid="${message.senderId}">${message.senderName || ''}</strong>${content}`;
     } else {
         bubble.innerHTML = content;
@@ -124,7 +122,6 @@ function displaySearchResults(users) {
 }
 
 async function buildNewGroupPanelContent() {
-    // ALTERADO: de sessionStorage para localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userChatsRef = database.ref(`user_chats/${currentUser.id}`);
     const allUsersSnapshot = await database.ref('users').once('value');
@@ -155,7 +152,7 @@ async function buildNewGroupPanelContent() {
 function buildParticipantsPanel(participants) {
     let participantsHtml = '';
     for (const user of participants) {
-        participantsHtml += `<div class="list-item">${user.username} (${user.id})</div>`;
+        participantsHtml += `<div class="list-item clickable-name" data-userid="${user.id}">${user.username} (${user.id})</div>`;
     }
     return `
         <div class="overlay-content">
@@ -166,17 +163,14 @@ function buildParticipantsPanel(participants) {
     `;
 }
 
-// --- NOVA FUNÇÃO MESTRA PARA O PAINEL DE IDENTIDADE ---
-
+// ALTERADO: A função agora exibe a média de avaliação para todos os usuários.
 async function buildIdentityPanel(userId) {
-    // ALTERADO: de sessionStorage para localStorage - ESTA É A CORREÇÃO PRINCIPAL
     const me = JSON.parse(localStorage.getItem('currentUser'));
     const isMyProfile = userId === me.id;
 
     const userRef = database.ref(`users/${userId}`);
     const snapshot = await userRef.once('value');
     
-    // Adicionada uma verificação de segurança, como sugerido anteriormente
     if (!snapshot.exists()) {
         console.error("Usuário não encontrado com o ID:", userId);
         return `<div class="overlay-content"><button class="close-button" onclick="toggleOverlay('identity-overlay', false)">&times;</button><h3>Erro</h3><p>Usuário não encontrado.</p></div>`;
@@ -188,8 +182,8 @@ async function buildIdentityPanel(userId) {
     if (userData.links) {
         linksHtml = Object.entries(userData.links).map(([key, value]) => `
             <div class="link-item">
-                <a href="${value.url}" target="_blank">
-                    <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${value.url}" alt="ícone">
+                <a href="${value.url}" target="_blank" rel="noopener noreferrer">
+                    <img src="https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(value.url)}" alt="ícone">
                     <span>${value.url}</span>
                 </a>
                 ${isMyProfile ? `<button class="icon-button" onclick="removeUserLink('${key}')">&times;</button>` : ''}
@@ -197,19 +191,22 @@ async function buildIdentityPanel(userId) {
         `).join('');
     }
 
-    // Lógica de Avaliação
+    // Lógica de Avaliação Melhorada
     let ratingHtml = '';
     const avgRating = userData.ratings ? (userData.ratings.sum / userData.ratings.count).toFixed(1) : '0.0';
     const totalRatings = userData.ratings ? userData.ratings.count : 0;
     const hasRated = userData.ratedBy && userData.ratedBy[me.id];
 
+    const ratingSummaryHtml = `<div class="rating-summary">Média de Avaliação: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i> (${totalRatings} avaliações)</div>`;
+
     if (isMyProfile) {
-        ratingHtml = `<div class="rating-summary">Sua Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i> (${totalRatings} avaliações)</div>`;
+        ratingHtml = ratingSummaryHtml;
     } else if (hasRated) {
-        ratingHtml = `<div class="rating-summary">Você já avaliou este usuário. Média: <strong>${avgRating}</strong> <i class="fa-solid fa-star"></i></div>`;
+        ratingHtml = `<div class="rating-summary">Você já avaliou este usuário. ${ratingSummaryHtml}</div>`;
     } else {
         ratingHtml = `
-            <h4>Avalie este usuário:</h4>
+            ${ratingSummaryHtml}
+            <h4 style="margin-top:20px;">Avalie este usuário:</h4>
             <div class="star-rating" data-userid="${userId}">
                 ${[...Array(10)].map((_, i) => `<i class="fa-regular fa-star" data-value="${i + 1}"></i>`).join('')}
             </div>
@@ -229,20 +226,20 @@ async function buildIdentityPanel(userId) {
                 ${userData.googleEmail ? `<i class="fa-brands fa-google"></i> <span>${userData.googleEmail}</span>` : ''}
             </div>
             
-            ${!isMyProfile && userData.googleEmail ? '' : (isMyProfile && !userData.googleEmail ? '<button id="link-google-btn" class="google-signin-btn action-button"><i class="fa-brands fa-google"></i> Vincular Conta Google</button>' : '')}
+            ${isMyProfile && !userData.googleEmail ? '<button id="link-google-btn" class="google-signin-btn action-button"><i class="fa-brands fa-google"></i> Vincular Conta Google</button>' : ''}
             
             <hr>
             <h4>Biografia</h4>
             ${isMyProfile 
                 ? `<textarea id="bio-textarea" placeholder="Conte um pouco sobre você...">${userData.bio || ''}</textarea><button id="save-bio-btn" class="action-button">Salvar Bio</button>` 
-                : `<p>${userData.bio || 'Nenhuma biografia definida.'}</p>`
+                : `<p>${convertMarkdownToHtml(userData.bio) || 'Nenhuma biografia definida.'}</p>`
             }
             
             <hr>
             <h4>Links</h4>
-            ${linksHtml}
+            <div class="links-container">${linksHtml}</div>
             ${isMyProfile 
-                ? `<div style="display: flex; gap: 10px; margin-top: 10px;"><input type="text" id="new-link-input" placeholder="https://exemplo.com"><button id="add-link-btn" class="action-button">Add</button></div>` 
+                ? `<div style="display: flex; gap: 10px; margin-top: 10px;"><input type="url" id="new-link-input" placeholder="https://exemplo.com"><button id="add-link-btn" class="action-button">Add</button></div>` 
                 : ''
             }
             <hr>
