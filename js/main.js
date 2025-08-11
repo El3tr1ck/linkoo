@@ -65,9 +65,7 @@ async function showIdentityPanel(userId) {
     toggleOverlay('identity-overlay', true);
 }
 
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Seletores de Elementos ---
     const loginButton = document.getElementById('login-button');
     const usernameInput = document.getElementById('username-input');
     const addContactButton = document.getElementById('add-contact-button');
@@ -81,25 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToContactsButton = document.getElementById('back-to-contacts-button');
     const identityButton = document.getElementById('identity-button');
 
-    // --- Lógica de Inicialização ---
-
-    // =========================================================================
-    // NOVO BLOCO: CAPTURA O RESULTADO DO LOGIN GOOGLE APÓS O REDIRECIONAMENTO
-    // Este código verifica se o usuário está voltando da página do Google.
     firebase.auth().getRedirectResult()
         .then((result) => {
-            // Se 'result.user' existir, o login foi bem-sucedido.
             if (result && result.user) {
                 const email = result.user.email;
                 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-
-                // Verifica se temos um email do Google e um usuário logado no nosso app
                 if (email && currentUser) {
-                    // Vincula a conta Google ao perfil do usuário no nosso banco de dados
                     database.ref(`users/${currentUser.id}/googleEmail`).set(email)
                         .then(() => {
                             alert("Conta Google vinculada com sucesso!");
-                            // Opcional: recarregar o painel de identidade se ele estava aberto
                             showIdentityPanel(currentUser.id);
                         })
                         .catch((dbError) => {
@@ -109,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }).catch((error) => {
-            // Lida com erros comuns do redirecionamento
             console.error("Erro no redirecionamento do Google Login:", error);
             if (error.code === 'auth/account-exists-with-different-credential') {
                 alert("Erro: Já existe uma conta com este e-mail, mas usando um método de login diferente.");
@@ -117,8 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Ocorreu um erro ao tentar vincular a conta Google.");
             }
         });
-    // FIM DO NOVO BLOCO
-    // =========================================================================
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -128,69 +113,75 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUserChats(userData.id);
     }
     
-    // --- Event Listeners ---
-    loginButton.addEventListener('click', () => loginUser(usernameInput.value));
-    usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value); });
+    if (loginButton) loginButton.addEventListener('click', () => loginUser(usernameInput.value));
+    if (usernameInput) usernameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loginUser(usernameInput.value); });
 
-    backToContactsButton.addEventListener('click', () => {
-        document.body.classList.remove('chat-active');
-        if (activeChatRef) {
-            activeChatRef.off();
-            activeChatRef = null;
-        }
-        activeChat = null;
-        document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-        document.getElementById('chat-conversation-screen').classList.add('hidden');
-        document.getElementById('chat-welcome-screen').classList.remove('hidden');
-    });
-
-    identityButton.addEventListener('click', () => {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        showIdentityPanel(currentUser.id);
-    });
-
-    addContactButton.addEventListener('click', () => {
-        toggleOverlay('add-contact-overlay', true);
-        document.getElementById('add-contact-overlay').innerHTML = buildAddContactPanel();
-        setTimeout(() => {
-            const searchInput = document.getElementById('search-user-input');
-            if(searchInput) searchInput.addEventListener('keyup', (e) => searchUsers(e.target.value));
-        }, 100);
-    });
-
-    newGroupButton.addEventListener('click', () => {
-        const overlay = document.getElementById('new-group-overlay');
-        overlay.innerHTML = `
-            <div class="overlay-content">
-                <button class="close-button" onclick="toggleOverlay('new-group-overlay', false)">&times;</button>
-                <h3>Criar Novo Grupo</h3>
-                <input type="text" id="group-name-input" placeholder="Nome do Grupo">
-                <h4>Selecionar Participantes (Apenas Contatos):</h4>
-                <div id="group-user-list" class="scrollable-list"></div>
-                <button id="create-group-button-action" class="action-button">Criar Grupo</button>
-            </div>`;
-        toggleOverlay('new-group-overlay', true);
-        buildNewGroupPanelContent();
-    });
-
-    deleteAccountButton.addEventListener('click', () => {
-        if (confirm("ATENÇÃO: Ação irreversível!\n\nVocê tem certeza que deseja apagar sua conta?")) {
-            if(confirm("ÚLTIMO AVISO: Confirma a exclusão permanente da sua conta?")) {
-                deleteCurrentUserAccount();
+    if (backToContactsButton) {
+        backToContactsButton.addEventListener('click', () => {
+            document.body.classList.remove('chat-active');
+            if (activeChatRef) {
+                activeChatRef.off();
+                activeChatRef = null;
             }
-        }
-    });
+            activeChat = null;
+            document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('chat-conversation-screen').classList.add('hidden');
+            document.getElementById('chat-welcome-screen').classList.remove('hidden');
+        });
+    }
 
-    // --- DELEGAÇÃO DE EVENTOS PARA ITENS DINÂMICOS ---
+    if (identityButton) {
+        identityButton.addEventListener('click', () => {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            showIdentityPanel(currentUser.id);
+        });
+    }
+
+    if (addContactButton) {
+        addContactButton.addEventListener('click', () => {
+            toggleOverlay('add-contact-overlay', true);
+            document.getElementById('add-contact-overlay').innerHTML = buildAddContactPanel();
+            setTimeout(() => {
+                const searchInput = document.getElementById('search-user-input');
+                if(searchInput) searchInput.addEventListener('keyup', (e) => searchUsers(e.target.value));
+            }, 100);
+        });
+    }
+
+    if (newGroupButton) {
+        newGroupButton.addEventListener('click', () => {
+            const overlay = document.getElementById('new-group-overlay');
+            overlay.innerHTML = `
+                <div class="overlay-content">
+                    <button class="close-button" onclick="toggleOverlay('new-group-overlay', false)">&times;</button>
+                    <h3>Criar Novo Grupo</h3>
+                    <input type="text" id="group-name-input" placeholder="Nome do Grupo">
+                    <h4>Selecionar Participantes (Apenas Contatos):</h4>
+                    <div id="group-user-list" class="scrollable-list"></div>
+                    <button id="create-group-button-action" class="action-button">Criar Grupo</button>
+                </div>`;
+            toggleOverlay('new-group-overlay', true);
+            buildNewGroupPanelContent();
+        });
+    }
+
+    if (deleteAccountButton) {
+        deleteAccountButton.addEventListener('click', () => {
+            if (confirm("ATENÇÃO: Ação irreversível!\n\nVocê tem certeza que deseja apagar sua conta?")) {
+                if(confirm("ÚLTIMO AVISO: Confirma a exclusão permanente da sua conta?")) {
+                    deleteCurrentUserAccount();
+                }
+            }
+        });
+    }
+
     document.addEventListener('click', (e) => {
         const target = e.target;
-        // Botão "Conversar" na busca
         if (target.classList.contains('add-user-btn')) {
             const userData = { id: target.dataset.userId, username: target.dataset.userUsername };
             startChatWith(userData);
             toggleOverlay('add-contact-overlay', false);
         }
-        // Botão "Criar Grupo"
         if (target.id === 'create-group-button-action') {
             const groupName = document.getElementById('group-name-input').value;
             const selectedUsers = Array.from(document.querySelectorAll('#group-user-list input:checked')).map(input => input.value);
@@ -201,11 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Por favor, dê um nome ao grupo e selecione pelo menos um participante.");
             }
         }
-        // Nomes clicáveis para abrir identidade
         if (target.classList.contains('clickable-name') && target.dataset.userid) {
             showIdentityPanel(target.dataset.userid);
         }
-        // Lógica do painel de identidade
         if(target.id === 'link-google-btn') linkGoogleAccount();
         if(target.id === 'save-bio-btn') {
             const bio = document.getElementById('bio-textarea').value;
@@ -218,20 +207,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 addUserLink(url);
                 document.getElementById('new-link-input').value = '';
                 const me = JSON.parse(localStorage.getItem('currentUser'));
-                showIdentityPanel(me.id); // Recarrega o painel
+                showIdentityPanel(me.id);
             }
         }
-        // Submeter avaliação
         if(target.id === 'submit-rating-btn' && !target.classList.contains('hidden')) {
             const rating = parseInt(target.dataset.rating, 10);
             const userId = target.parentElement.querySelector('.star-rating').dataset.userid;
             submitUserRating(userId, rating);
             alert(`Você avaliou com ${rating} estrelas!`);
-            showIdentityPanel(userId); // Recarrega para mostrar que já foi avaliado
+            showIdentityPanel(userId);
         }
     });
     
-    // Delegação de eventos para as estrelas
     document.addEventListener('mouseover', e => {
         if (e.target.matches('.star-rating i')) {
             const allStars = e.target.parentElement.querySelectorAll('i');
@@ -252,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
-     document.addEventListener('click', e => {
+    document.addEventListener('click', e => {
         if (e.target.matches('.star-rating i')) {
             const ratingContainer = e.target.parentElement;
             const rating = parseInt(e.target.dataset.value, 10);
@@ -263,77 +250,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    if (chatOptionsButton) {
+        chatOptionsButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('chat-options-menu').classList.toggle('hidden');
+        });
+    }
 
-    // --- LISTENERS DOS MENUS ---
-    chatOptionsButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('chat-options-menu').classList.toggle('hidden');
-    });
+    if (document.getElementById('chat-options-menu')) {
+        document.getElementById('chat-options-menu').addEventListener('click', (e) => {
+            if (!activeChat) return;
+            const button = e.target.closest('button');
+            if (!button) return;
 
-    document.getElementById('chat-options-menu').addEventListener('click', (e) => {
-        if (!activeChat) return;
-        const button = e.target.closest('button');
-        if (!button) return;
-
-        const action = button.id;
-        switch(action) {
-            case 'block-user-button':
-                checkIfBlocked(activeChat.withUserId).then(isBlocked => {
-                    if (isBlocked) {
-                        unblockUser(activeChat.withUserId);
-                        button.innerHTML = `<i class="fa-solid fa-ban"></i> Bloquear`;
-                    } else {
-                        blockUser(activeChat.withUserId);
-                        button.innerHTML = `<i class="fa-solid fa-ban"></i> Desbloquear`;
+            const action = button.id;
+            switch(action) {
+                case 'block-user-button':
+                    checkIfBlocked(activeChat.withUserId).then(isBlocked => {
+                        if (isBlocked) {
+                            unblockUser(activeChat.withUserId);
+                            button.innerHTML = `<i class="fa-solid fa-ban"></i> Bloquear`;
+                        } else {
+                            blockUser(activeChat.withUserId);
+                            button.innerHTML = `<i class="fa-solid fa-ban"></i> Desbloquear`;
+                        }
+                    });
+                    break;
+                case 'delete-chat-button':
+                    if (confirm("Tem certeza que deseja apagar esta conversa?")) {
+                        deleteConversation(activeChat.id);
+                        backToContactsButton.click();
                     }
-                });
-                break;
-            case 'delete-chat-button':
-                if (confirm("Tem certeza que deseja apagar esta conversa?")) {
-                    deleteConversation(activeChat.id);
-                    backToContactsButton.click();
-                }
-                break;
-            case 'leave-group-button':
-                 if (confirm("Tem certeza que deseja sair deste grupo?")) {
-                    leaveGroup(activeChat.id);
-                    backToContactsButton.click();
-                }
-                break;
-        }
-        document.getElementById('chat-options-menu').classList.add('hidden');
-    });
+                    break;
+                case 'leave-group-button':
+                    if (confirm("Tem certeza que deseja sair deste grupo?")) {
+                        leaveGroup(activeChat.id);
+                        backToContactsButton.click();
+                    }
+                    break;
+            }
+            document.getElementById('chat-options-menu').classList.add('hidden');
+        });
+    }
 
-    sendMessageButton.addEventListener('click', () => {
-        const text = messageInput.value.trim();
-        if (text && activeChat) {
-            sendTextMessage(activeChat.id, text, activeChat.type);
-            messageInput.value = '';
+    if (sendMessageButton) {
+        sendMessageButton.addEventListener('click', () => {
+            const text = messageInput.value.trim();
+            if (text && activeChat) {
+                sendTextMessage(activeChat.id, text, activeChat.type);
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+            }
+        });
+    }
+    
+    if (messageInput) {
+        messageInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessageButton.click();
+            }
+        });
+        messageInput.addEventListener('input', () => {
             messageInput.style.height = 'auto';
-        }
-    });
+            messageInput.style.height = (messageInput.scrollHeight) + 'px';
+        });
+    }
     
-    messageInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessageButton.click();
-        }
-    });
+    if (fileMenuButton) {
+        fileMenuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('file-options').classList.toggle('hidden');
+        });
+    }
 
-    messageInput.addEventListener('input', () => {
-        messageInput.style.height = 'auto';
-        messageInput.style.height = (messageInput.scrollHeight) + 'px';
-    });
-    
-    fileMenuButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('file-options').classList.toggle('hidden');
-    });
-
-    sendPhotoButton.addEventListener('click', () => {
-        if (activeChat) handlePhotoUpload(activeChat.id);
-        document.getElementById('file-options').classList.add('hidden');
-    });
+    if (sendPhotoButton) {
+        sendPhotoButton.addEventListener('click', () => {
+            if (activeChat) handlePhotoUpload(activeChat.id);
+            document.getElementById('file-options').classList.add('hidden');
+        });
+    }
     
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.message-input-area') && !e.target.closest('.chat-header-options')) {
