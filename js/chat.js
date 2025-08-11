@@ -1,6 +1,41 @@
 let activeChatRef = null;
 
-// --- FUNÇÕES DE BUSCA E INICIALIZAÇÃO ---
+async function deleteCurrentUserAccount() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
+    try {
+        // Passo 1: Identificar os grupos do usuário a partir de /user_chats/$userId
+        const userChatsSnapshot = await database.ref(`user_chats/${currentUser.id}`).once('value');
+        const userChats = userChatsSnapshot.val();
+
+        if (userChats) {
+            const groupPromises = [];
+            for (const chatId in userChats) {
+                if (userChats[chatId].type === 'group') {
+                    groupPromises.push(
+                        database.ref(`groups/${chatId}/participants/${currentUser.id}`).remove()
+                    );
+                }
+            }
+            await Promise.all(groupPromises);
+        }
+
+        // Passo 2: Remover os dados do usuário
+        await Promise.all([
+            database.ref(`users/${currentUser.id}`).remove(),
+            database.ref(`user_chats/${currentUser.id}`).remove(),
+            database.ref(`blocked_users/${currentUser.id}`).remove()
+        ]);
+
+        // Passo 3: Limpar o localStorage e recarregar a página
+        localStorage.clear();
+        window.location.reload();
+    } catch (error) {
+        console.error("Erro ao apagar a conta:", error);
+        alert("Ocorreu um erro ao apagar sua conta: " + error.message);
+    }
+}
 
 function searchUsers(query) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -68,8 +103,6 @@ function loadChatMessages(chatId) {
     });
 }
 
-// --- FUNÇÕES DE ENVIO DE MENSAGEM ---
-
 async function sendTextMessage(chatId, text, chatType) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (chatType === 'direct') {
@@ -119,8 +152,6 @@ function sendImageMessage(chatId, base64String) {
     database.ref('chats/' + chatId).push(message);
 }
 
-// --- FUNÇÕES DE GRUPO ---
-
 function createGroup(groupName, participantIds) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const groupId = database.ref('groups').push().key;
@@ -149,8 +180,6 @@ function leaveGroup(groupId) {
     database.ref(`user_chats/${currentUser.id}/${groupId}`).remove();
 }
 
-// --- FUNÇÕES DE AÇÃO (BLOQUEAR, APAGAR) ---
-
 function blockUser(otherUserId) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     database.ref(`blocked_users/${currentUser.id}/${otherUserId}`).set(true);
@@ -172,35 +201,8 @@ function deleteConversation(chatId) {
     database.ref(`user_chats/${currentUser.id}/${chatId}`).remove();
 }
 
-async function deleteCurrentUserAccount() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (!currentUser) return;
-
-    const groupsSnapshot = await database.ref('groups').once('value');
-    const groups = groupsSnapshot.val();
-    if (groups) {
-        for (const groupId in groups) {
-            if (groups[groupId].participants && groups[groupId].participants[currentUser.id]) {
-                database.ref(`groups/${groupId}/participants/${currentUser.id}`).remove();
-            }
-        }
-    }
-
-    await database.ref('users/' + currentUser.id).remove();
-    await database.ref('user_chats/' + currentUser.id).remove();
-    await database.ref('blocked_users/' + currentUser.id).remove();
-
-    localStorage.clear();
-    window.location.reload();
-}
-
-// --- NOVAS FUNÇÕES DE IDENTIDADE ---
-
-// ALTERADO: A função agora usa signInWithRedirect para maior compatibilidade com celulares.
 function linkGoogleAccount() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Inicia o processo de login redirecionando para a página do Google.
-    // O navegador sairá do seu site e voltará depois.
     firebase.auth().signInWithRedirect(provider);
 }
 
@@ -224,7 +226,6 @@ function submitUserRating(ratedUserId, rating) {
     const ratingRef = database.ref(`users/${ratedUserId}/ratings`);
     const ratedByRef = database.ref(`users/${ratedUserId}/ratedBy/${currentUser.id}`);
 
-    // Usa uma transação para garantir que a soma e a contagem sejam atualizadas atomicamente
     ratingRef.transaction((currentRatings) => {
         if (currentRatings === null) {
             return { sum: rating, count: 1 };
@@ -233,7 +234,7 @@ function submitUserRating(ratedUserId, rating) {
         }
     });
 
-    ratedByRef.set(true); // Marca que o usuário atual já avaliou
+    ratedByRef.set(true);
 }
 
 function convertMarkdownToHtml(text) {
